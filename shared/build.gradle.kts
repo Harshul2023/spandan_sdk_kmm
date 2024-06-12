@@ -1,0 +1,106 @@
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinCocoapods)
+    alias(libs.plugins.androidLibrary)
+    id("maven-publish")
+
+}
+project.afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                groupId = "com.example.spandan_sdk"
+                artifactId = "spandan_sdk"
+                version = "1.0.0"
+                from(components["kotlin"])
+            }
+        }
+        repositories {
+            mavenLocal()
+        }
+    }
+}
+
+repositories {
+    mavenLocal()
+    google()
+    mavenCentral()
+//    maven { url "https://plugins.gradle.org/m2/" }
+    maven {
+        url = uri("https://maven.pkg.github.com/sunfox-technologies/sericom")
+        credentials {
+            username = "beato"
+            password = "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"
+        }
+    }
+}
+
+kotlin {
+    androidTarget {
+        publishAllLibraryVariants()
+        publishLibraryVariantsGroupedByFlavor = true
+        compilations.all {
+            kotlinOptions {
+                jvmTarget = "1.8"
+            }
+        }
+    }
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
+    cocoapods {
+        summary = "Some description for the Shared Module"
+        homepage = "Link to the Shared Module homepage"
+        version = "1.0"
+        ios.deploymentTarget = "13.0"
+        framework {
+            baseName = "shared"
+            isStatic = true
+        }
+        pod("SericomPod") {
+            source = git("https://username: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@github.com/sunfox-technologies/sericomm_ios.git/") {
+                branch = "main"
+            }
+
+            extraOpts += listOf("-compiler-option", "-fmodules")
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation("com.example.ecg_processor_kmm:ecg_processor_kmm:1.0.1")
+
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
+        val androidMain by getting {
+            dependencies {
+
+                implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+                // Android-specific dependencies go here
+                implementation ("in.sunfox.healthcare.commons.android.sericom:sericom:1.0.8")
+            }
+        }
+
+    }
+}
+
+android {
+    namespace = "com.example.spandan_sdk_kotlin"
+    compileSdk = 34
+    defaultConfig {
+        minSdk = 24
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+}
+dependencies {
+    releaseImplementation(libs.ecg.processor.kmm)
+}
