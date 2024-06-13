@@ -1,11 +1,12 @@
-package `in`.sunfox.healthcare.commons.android.spandan_sdk.enums
+
 
 enum class SpandanException {
     IllegalStateException,
-    IllegalLeadException,
+    InvalidLeadSelectedException,
     InsufficientDataException,
     DeviceNotConnectedException,
-    IllegalTestException,
-    AuthenticationException,
-    InvalidTokenException
+    InvalidTestException,
+    SDKNotInitialisedException,
+    TestNotCompleteException,
+    InvalidSessionException
 }

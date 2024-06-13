@@ -1,6 +1,4 @@
-package com.example.spandansdkkmm.Interface
-
-import com.example.spandansdkkmm.enums.DeviceErrorState
+package com.example.spandansdkkmm.listener
 
 interface ConnectionStateListener {
     fun onConnectionError(errorCode: DeviceErrorState)

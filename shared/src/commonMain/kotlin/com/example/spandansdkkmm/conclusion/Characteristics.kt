@@ -1,6 +1,7 @@
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
+
 @Serializable
 data class Characteristics(
     @SerialName("pr") var pr: Int,
@@ -22,6 +23,7 @@ data class Characteristics(
     @SerialName("t_wave_end_points") var tWaveEndPoints: List<Double>,
 
     // Added for new algorithm
+
     @SerialName("averagePAmplitude") var averagePAmplitudeInLead: Double,
     @SerialName("averageQAmplitude") var averageQAmplitudeInLead: Double,
     @SerialName("averageSAmplitude") var averageSAmplitudeInLead: Double,

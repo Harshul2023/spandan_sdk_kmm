@@ -1,7 +1,7 @@
 package com.example.spandansdkkmm.retrofit_helper
 
-data class GenerateReportResult(
-    val `data`: Data,
+data class GeneratePdfReportResult(
+    val `data`: ReportGenerationResult,
     val status: Int,
     val success: Boolean,
     val message:String

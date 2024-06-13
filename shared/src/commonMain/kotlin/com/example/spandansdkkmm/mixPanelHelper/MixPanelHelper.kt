@@ -5,23 +5,44 @@
 //import `in`.sunfox.healthcare.commons.android.spandan_sdk.AppConfig
 //import org.json.JSONObject
 //
-//class MixPanelHelper {
-//
-//    private lateinit var mixpanelAPI: MixpanelAPI
-//    companion object {
-//
-//        private val mixPanelHelper : MixPanelHelper?=null
-//        fun getInstance(context:Context):MixPanelHelper{
+class MixPanelHelper {
+    fun sendToMixpanel(eventName: String, key: ArrayList<String>, value: ArrayList<String>) {
+
+    }
+
+    fun sendTimingEvent(eventName: String, key: ArrayList<String>, value: ArrayList<String>, b: Boolean) {
+
+    }
+
+    //    private lateinit var mixpanelAPI: MixpanelAPI
+    private lateinit var mixpanelAPI: Any
+
+    companion object {
+
+        private val mixPanelHelper: MixPanelHelper? = null
+
+        //        fun getInstance(context:Context):MixPanelHelper{
 //            return if (mixPanelHelper==null) {
 //                val mixPanelHelper = MixPanelHelper()
 //                mixPanelHelper.mixpanelAPI =
-//                    MixpanelAPI.getInstance(context, AppConfig.mixPanelToken, false)
+//                    MixpanelAPI.getInstance(context, AppConfig.MIX_PANEL_TOKEN, false)
 //                mixPanelHelper
 //            } else
 //                mixPanelHelper
 //        }
-//
-//    }
+        fun getInstance(context: Any): MixPanelHelper {
+//            return if (mixPanelHelper==null) {
+//                val mixPanelHelper = MixPanelHelper()
+//                mixPanelHelper.mixpanelAPI =
+//                    MixpanelAPI.getInstance(context, AppConfig.MIX_PANEL_TOKEN, false)
+//                mixPanelHelper
+//            } else
+            return mixPanelHelper!!
+//        }
+
+        }
+    }
+}
 //    fun sendToMixpanel(
 //        eventName: String,
 //        key: List<String>,
@@ -31,10 +52,9 @@
 //        key.forEachIndexed { index, _key ->
 //            props.put(_key, value[index])
 //        }
-////        props.put(key,value)
 //        mixpanelAPI.track(eventName, props)
 //    }
-//
+
 //    fun sendTimingEvent(
 //        eventName: String,
 //        key: List<String>,
@@ -50,5 +70,4 @@
 //        else
 //            mixpanelAPI.track(eventName,props)
 //    }
-//
-//}
+

@@ -4,10 +4,12 @@ package com.example.spandansdkkmm
 import cocoapods.SericomPod.DeviceErrorState
 import cocoapods.SericomPod.OnConnectionStateChangeListenerProtocol
 import cocoapods.SericomPod.SeriCom
-import com.example.spandansdkkmm.Interface.ConnectionStateListener
+import com.example.spandansdkkmm.listener.ConnectionStateListener
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.UIKit.UIApplication
 import platform.darwin.NSObject
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 class IOSPlatform : Platform {
     override val name: String = "iOS"
@@ -23,14 +25,14 @@ class IOSListener:InitializeListener{
                         connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.CONNECTION)
                     }
                     1L -> {
-                        connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.PERMISSIONDENIED)
+                        connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.PERMISSION_DENIED)
                     }
 
                     2L -> {
                         connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.ENDPOINT)
                     }
                     3L ->{
-                        connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.BLUETOOTHNOTPOWEREDON)
+                        connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.BLUETOOTH_NOT_POWERED_ON)
                     }
                 }
             }
@@ -92,6 +94,19 @@ class IOSCommunicator : Communicate {
         return SeriCom.isDeviceConnected()
     }
 }
+class Authentication: AuthenticationHelper {
+
+    @OptIn(ExperimentalForeignApi::class)
+    override fun decrypt(strToDecrypt: String?, key: String, iv: String): String {
+          return SeriCom.decryptWithStrToDecrypt(strToDecrypt,key,iv)
+        }
+
+    @OptIn(ExperimentalForeignApi::class)
+    override fun init(stringToHash: String): String {
+     return  SeriCom.initializeAuthenticationWithStringToHash(stringToHash)
+    }
+}
+
 
 
 
@@ -102,3 +117,5 @@ actual fun getInitializer(): Initializer = IOSInitializer()
 
 actual fun getCommunicator(): Communicate = IOSCommunicator()
 actual fun setListener():InitializeListener = IOSListener()
+
+actual fun authenticationHelper():AuthenticationHelper = Authentication()

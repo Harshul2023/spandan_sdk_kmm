@@ -2,11 +2,16 @@
 package com.example.spandansdkkmm
 
 import android.app.Application
+import android.util.Base64
 import android.util.Log
-import com.example.spandansdkkmm.Interface.ConnectionStateListener
+import com.example.spandansdkkmm.listener.ConnectionStateListener
 import `in`.sunfox.healthcare.commons.android.sericom.SeriCom
 import `in`.sunfox.healthcare.commons.android.sericom.interfaces.OnConnectionStateChangeListener
 import `in`.sunfox.healthcare.commons.android.sericom.utils.DeviceErrorState
+import java.security.MessageDigest
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class AndroidPlatform : Platform {
     override val name: String = "Android ${android.os.Build.VERSION.SDK_INT}"
@@ -25,7 +30,7 @@ class AndroidListener:InitializeListener{
                         connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.CONNECTION)
                     }
                     DeviceErrorState.PERMISSION_DENIED -> {
-                        connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.PERMISSIONDENIED)
+                        connectionStateListener.onConnectionError(com.example.spandansdkkmm.enums.DeviceErrorState.PERMISSION_DENIED)
                     }
 
                     DeviceErrorState.ENDPOINT -> {
@@ -84,7 +89,30 @@ class AndroidCommunicator : Communicate {
        return  SeriCom.isDeviceConnected()
     }
 }
+class Authentication : AuthenticationHelper{
+    override fun decrypt(strToDecrypt: String?, key: String, iv: String): String {
+                val secretKey = SecretKeySpec(key.toByteArray(), "AES")
+        val ivData = IvParameterSpec(iv.toByteArray())
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivData)
+        val decodedBytes = Base64.decode(strToDecrypt, Base64.URL_SAFE)
+        val decrypted = cipher.doFinal(decodedBytes)
+        return String(decrypted)
+    }
 
+    override fun init(stringToHash:String): String {
+        val decryptionKey=
+            MessageDigest.getInstance("SHA-256")
+                .digest(stringToHash.toByteArray()).joinToString("")
+                {
+                    "%02x".format(it)
+                }
+                .substring(0, 32)
+        return  decryptionKey
+    }
+
+}
+actual fun authenticationHelper():AuthenticationHelper = Authentication()
 
 actual fun getPlatform(): Platform = AndroidPlatform()
 

@@ -1,7 +1,10 @@
 package com.example.spandansdkkmm.retrofit_helper
 
-data class Data(
+import kotlinx.serialization.SerialName
+
+data class ReportGenerationResult(
     val characteristics: Characteristics,
     val conclusions: Conclusions,
-    val url: String
+    @SerialName("url")
+    val pdfReportUrl: String
 )

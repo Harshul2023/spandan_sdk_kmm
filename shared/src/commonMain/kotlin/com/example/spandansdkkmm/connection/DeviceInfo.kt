@@ -1,6 +1,4 @@
-package `in`.sunfox.healthcare.commons.android.spandan_sdk.connection
 
-import com.example.spandansdkkmm.SpandanSDK
 import com.example.spandansdkkmm.enums.SpandanDeviceVariant
 
 

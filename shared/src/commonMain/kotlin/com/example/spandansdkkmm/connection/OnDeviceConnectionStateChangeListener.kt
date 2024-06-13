@@ -1,6 +1,7 @@
 package com.example.spandansdkkmm.connection
 
-import `in`.sunfox.healthcare.commons.android.spandan_sdk.connection.DeviceInfo
+import DeviceInfo
+
 
 interface OnDeviceConnectionStateChangeListener {
     fun onDeviceAttached()
@@ -8,5 +9,4 @@ interface OnDeviceConnectionStateChangeListener {
     fun onDeviceDisconnected()
     fun onUsbPermissionDenied()
     fun onConnectionTimedOut()
-    fun onDataReceived(data:String)
 }

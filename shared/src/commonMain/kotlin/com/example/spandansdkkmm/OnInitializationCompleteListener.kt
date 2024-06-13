@@ -1,6 +1,6 @@
 package com.example.spandansdkkmm
 
 interface OnInitializationCompleteListener {
-    fun onInitializationSuccess(authenticationToken: String)
+    fun onInitializationSuccess()
     fun onInitializationFailed(message: String)
 }

@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.kotlinCocoapods)
@@ -22,6 +25,14 @@ project.afterEvaluate {
 }
 
 repositories {
+
+    // Load properties from a file
+    val localProperties = Properties()
+    localProperties.load(File("local.properties").inputStream())
+    val properties = Properties()
+    val localPropertiesFile = File(rootProject.rootDir, "local.properties")
+    if (localPropertiesFile.exists()) { properties.load(FileInputStream(localPropertiesFile)) }
+
     mavenLocal()
     google()
     mavenCentral()
@@ -29,8 +40,8 @@ repositories {
     maven {
         url = uri("https://maven.pkg.github.com/sunfox-technologies/sericom")
         credentials {
-            username = "beato"
-            password = "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"
+            username = properties.getProperty("repo.username", "")
+            password = properties.getProperty("repo.token", "")
         }
     }
 }
@@ -59,8 +70,14 @@ kotlin {
             isStatic = true
         }
         pod("SericomPod") {
-            source = git("https://username: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@github.com/sunfox-technologies/sericomm_ios.git/") {
-                branch = "main"
+            val localProperties = Properties()
+            localProperties.load(File("local.properties").inputStream())
+            val properties = Properties()
+            val localPropertiesFile = File(rootProject.rootDir, "local.properties")
+            if (localPropertiesFile.exists()) { properties.load(FileInputStream(localPropertiesFile)) }
+
+            source = git("https://username:"+properties.getProperty("cocoapod.token","")+"@github.com/sunfox-technologies/sericomm_ios.git/") {
+                branch = "authentication"
             }
 
             extraOpts += listOf("-compiler-option", "-fmodules")
@@ -73,6 +90,23 @@ kotlin {
 
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+            implementation("com.benasher44:uuid:0.8.4")
+//
+            implementation("io.ktor:ktor-client-core:2.3.11")
+            implementation("io.ktor:ktor-client-json:2.3.11")
+            implementation("io.ktor:ktor-client-serialization:2.3.11")
+
+            implementation("io.ktor:ktor-client-cio:2.3.11")
+
+            implementation("io.ktor:ktor-client-logging:2.3.11")
+
+            val core = "0.5.1"
+            implementation("org.kotlincrypto.core:digest:$core")
+            implementation("org.kotlincrypto.core:mac:$core")
+            implementation("org.kotlincrypto.core:xof:$core")
+
+
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -81,8 +115,6 @@ kotlin {
             dependencies {
 
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
-
-                // Android-specific dependencies go here
                 implementation ("in.sunfox.healthcare.commons.android.sericom:sericom:1.0.8")
             }
         }
