@@ -17,6 +17,8 @@ interface InitializeListener{
 interface Communicate {
     fun sendCommand(command: String)
     fun getDeviceConnected(): Boolean
+
+    fun clearInstance()
 }
 
 interface  AuthenticationHelper{

@@ -105,6 +105,7 @@ kotlin {
             implementation("org.kotlincrypto.core:digest:$core")
             implementation("org.kotlincrypto.core:mac:$core")
             implementation("org.kotlincrypto.core:xof:$core")
+            implementation("com.squareup.okio:okio:3.0.0")
 
 
         }

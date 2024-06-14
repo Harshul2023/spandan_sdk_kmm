@@ -5,8 +5,11 @@ import DeviceInfo
 import EcgTest
 import GenerateReportModel
 import MixPanelHelper
+import OnReportGenerationStateListener
 import PDFReportGenerationCallback
+import RetrofitHelper
 import com.example.spandansdkkmm.Const.CONNECTED_DEVICE_TYPE
+import com.example.spandansdkkmm.Const.DEVICE_CONNECTED
 import com.example.spandansdkkmm.Const.DEVICE_CONNECTION_TIMEOUT
 import com.example.spandansdkkmm.Const.DEVICE_DISCONNECTED
 import com.example.spandansdkkmm.Const.DEVICE_VERIFIED
@@ -15,6 +18,7 @@ import com.example.spandansdkkmm.Const.GENERATE_REPORT_CALLED
 import com.example.spandansdkkmm.Const.GENERATE_REPORT_SUCCESS
 import com.example.spandansdkkmm.Const.MASTER_KEY
 import com.example.spandansdkkmm.Const.REASON
+import com.example.spandansdkkmm.Const.SDK_INITIALISE_COMPLETE
 import com.example.spandansdkkmm.Const.SDK_INITIALISE_FAILED
 import com.example.spandansdkkmm.Const.TEST_CREATED
 import com.example.spandansdkkmm.Const.TEST_CREATE_FAILED
@@ -23,25 +27,47 @@ import com.example.spandansdkkmm.collection.EcgTestCallback
 import com.example.spandansdkkmm.conclusion.EcgReport
 import com.example.spandansdkkmm.connection.OnDeviceConnectionStateChangeListener
 import com.example.spandansdkkmm.connection.SpandanSDKException
+import com.example.spandansdkkmm.enums.DeviceErrorState
 import com.example.spandansdkkmm.enums.EcgPosition
 import com.example.spandansdkkmm.enums.EcgTestType
 import com.example.spandansdkkmm.enums.SpandanDeviceVariant
+import com.example.spandansdkkmm.listener.ConnectionStateListener
+import com.example.spandansdkkmm.model.ErrorResponse
 import com.example.spandansdkkmm.retrofit_helper.ApiEcgData
 import com.example.spandansdkkmm.retrofit_helper.GenerateAuthTokenResult
 import com.example.spandansdkkmm.retrofit_helper.GeneratePdfReportInputData
 import com.example.spandansdkkmm.retrofit_helper.MetaData
 import com.example.spandansdkkmm.retrofit_helper.PatientData
-import `in`.sunfox.healthcare.commons.android.spandan_sdk.enums.SpandanException
+import com.example.spandansdkkmm.retrofit_helper.ReportGenerationResult
+import com.example.spandansdkkmm.util.Utility
+import io.ktor.util.encodeBase64
+import io.ktor.utils.io.charsets.Charsets
+import io.ktor.utils.io.core.toByteArray
+import io.ktor.utils.io.errors.IOException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.InternalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.internal.synchronized
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Clock
+import okio.ByteString.Companion.encodeUtf8
 import kotlin.concurrent.Volatile
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.jvm.JvmStatic
+import kotlin.random.Random
 
 
 class SpandanSDK private constructor() {
+    private val platform: Platform = getPlatform()
     private var onDeviceConnectionStateChangeListener: OnDeviceConnectionStateChangeListener? = null
     private lateinit var report: EcgReport
     private lateinit var ecgTestType: EcgTestType
@@ -49,12 +75,14 @@ class SpandanSDK private constructor() {
     private lateinit var authenticationHelper: AuthenticationHelper
     private var enabledEcgTests: List<EcgTestType>? = null
     private var enabledSpandanDeviceVariants: List<SpandanDeviceVariant> = arrayListOf()
-    private lateinit var application: Application
+    private lateinit var application: Any
     private var useOfflineToken = false
     private var isDeviceVerified = false
     private var deviceInfo: DeviceInfo? = null
     private var sendCommand = ""
     private val TAG = "SpandanSDK.TAG"
+
+
 
     companion object {
         @Volatile
@@ -83,172 +111,159 @@ class SpandanSDK private constructor() {
         @JvmStatic
         private fun getSessionId() = sessionId
 
+        fun decodeBase64ToString(base64String: String): String {
+            return decodeBase64ToString(base64String)
+        }
+        @OptIn(ExperimentalEncodingApi::class)
         @JvmStatic
-        fun initializeOffline(application: Application, token: String) {
-            synchronized(this) {
-                masterKey = token
-                mixPanelHelper = MixPanelHelper.getInstance(application)
-                if (INSTANCE == null) {
-                    INSTANCE = SpandanSDK()
-                    val w = String(Base64.decode(token, Base64.DEFAULT))
-                    val id = w.substring(0, 64)
-                    val createdAt = w.substring(65, 78)
-                    val masterKey = w.substring(79, 95)
-                    generatedAuthToken = w.substring(96, token.length)
-                    INSTANCE!!.authenticationHelper =
-                        AuthenticationHelper(id = id, createdAt = createdAt, masterKey = masterKey)
-                    if (INSTANCE!!.validateOfflineAuthKey(token)) INSTANCE!!.bind(application)
-                    else throw SpandanSDKException("${SpandanException.SDKNotInitialisedException.name}: Could not initialise Spandan SDK. The token is invalid. Please check the token and try again.")
+        fun initializeOffline(application: Any, token: String) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val mutex = Mutex()
+                mutex.withLock {
+                    masterKey = token
+                    mixPanelHelper = MixPanelHelper.getInstance(application)
+                    if (INSTANCE == null) {
+                        INSTANCE = SpandanSDK()
+                        val w = decodeBase64ToString(token)
+                        val id = w.substring(0, 64)
+                        val createdAt = w.substring(65, 78)
+                        val masterKey = w.substring(79, 95)
+                        generatedAuthToken = w.substring(96, token.length)
+                        INSTANCE!!.authenticationHelper =
+                            AuthenticationHelper(
+                                id = id,
+                                createdAt = createdAt,
+                                masterKey = masterKey
+                            )
+                        if (INSTANCE!!.validateOfflineAuthKey(token)) INSTANCE!!.bind(application)
+                        else throw SpandanSDKException("${SpandanException.SDKNotInitialisedException.name}: Could not initialise Spandan SDK. The token is invalid. Please check the token and try again.")
+                    }
                 }
             }
         }
 
 
+        @OptIn(InternalCoroutinesApi::class)
         @JvmStatic
         fun initialize(
-            application: Application,
+            application: Any,
             verifierToken: String,
             masterKey: String,
             onInitializationCompleteListener: OnInitializationCompleteListener,
         ) {
             /**
              * @param organizationUniqueId can be used to uniquely identified the package name.**/
-            synchronized(this) {
+            CoroutineScope(Dispatchers.IO).launch {
+val mutex = Mutex()
+            mutex.withLock {
                 mixPanelHelper = MixPanelHelper.getInstance(application)
-                this.masterKey = masterKey
-                this.verifierToken = verifierToken
+                SpandanSDK.masterKey = masterKey
+                SpandanSDK.verifierToken = verifierToken
                 if (INSTANCE == null) {
                     INSTANCE = SpandanSDK()
                     INSTANCE!!.bind(application)
-                    CoroutineScope(IO).launch {
-                        sessionId = INSTANCE!!.createSessionId()
-                        RetrofitHelper()
-                            .getRetrofitInstance()
-                            .getAuthToken(
-                                authorization = verifierToken,
-                                apiKey = masterKey,
-                                sessionId = sessionId!!
-                            )
-                            .enqueue(object : Callback<GenerateAuthTokenResult> {
-                                override fun onResponse(
-                                    call: Call<GenerateAuthTokenResult>,
-                                    response: Response<GenerateAuthTokenResult>,
-                                ) {
-                                    var errorMsg = StringBuffer("")
-                                    if (!response.isSuccessful) {
-                                        val errorGson = Gson().fromJson(
-                                            Gson().toJson((response.errorBody() as ResponseBody).string()),
-                                            ErrorResponse::class.java
-                                        )
-                                        errorMsg = when (response.code()) {
-                                            401 -> StringBuffer(errorGson.message)
-                                            else -> StringBuffer("Internal server error. Please contact Sunfox support team")
-                                        }
-                                        mixPanelHelper.sendToMixpanel(
-                                            eventName = SDK_INITIALISE_FAILED,
-                                            key = arrayListOf(
-                                                MASTER_KEY,
-                                                REASON
-                                            ),
-                                            value = arrayListOf(
-                                                masterKey,
-                                                errorMsg.toString()
-                                            )
-                                        )
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val sessionId = INSTANCE!!.createSessionId()
+                        val response = RetrofitHelper().getRetrofitInstance().getAuthToken(
+                            authorization = verifierToken,
+                            apiKey = masterKey,
+                            sessionId = sessionId!!
+                        )
+
+                        try {
+
+                            if (response.success) {
+                                val authTokenResult = response.token
+                                if (authTokenResult != null) {
+//                                    if (authTokenResult.success) {
+                                    mixPanelHelper.sendToMixpanel(
+                                        eventName = SDK_INITIALISE_COMPLETE,
+                                        key = arrayListOf(MASTER_KEY),
+                                        value = arrayListOf(masterKey)
+                                    )
+                                    generatedAuthToken = authTokenResult
+                                    INSTANCE!!.authenticationHelper = AuthenticationHelper(
+                                        response.id,
+                                        response.createdAt,
+                                        masterKey
+                                    )
+
+                                    onInitializationCompleteListener.onInitializationSuccess()
+                                    try {
+                                        INSTANCE!!.decodeDeviceVariantAndTestType(generatedAuthToken!!)
+                                    } catch (e: Exception) {
                                         onInitializationCompleteListener.onInitializationFailed(
-                                            errorMsg.toString()
+                                            "${SpandanException.InvalidSessionException.name}: The session is not valid. Please re-initialise the Spandan SDK. Error Code: 4"
                                         )
                                     }
-                                    response.body().let {
-                                        if (it != null) {
-                                            if (!it.success) {
-                                                mixPanelHelper.sendToMixpanel(
-                                                    eventName = SDK_INITIALISE_FAILED,
-                                                    key = arrayListOf(
-                                                        MASTER_KEY,
-                                                        REASON
-                                                    ),
-                                                    value = arrayListOf(
-                                                        masterKey,
-                                                        it.message
-                                                    )
-                                                )
-                                                onInitializationCompleteListener.onInitializationFailed(
-                                                    it.message
-                                                )
-                                            } else {
-                                                mixPanelHelper.sendToMixpanel(
-                                                    eventName = SDK_INITIALISE_COMPLETE,
-                                                    key = arrayListOf(MASTER_KEY),
-                                                    value = arrayListOf(masterKey)
-                                                )
-                                                generatedAuthToken = it.token
-                                                INSTANCE!!.authenticationHelper =
-                                                    AuthenticationHelper(
-                                                        it.id,
-                                                        it.createdAt,
-                                                        masterKey
-                                                    ) //please provide inputKey as combination of id+created_at+master_key
-
-//                                                INSTANCE!!.authenticationHelper.initialiseDecryptionKey(
-//                                                    it.id + it.createdAt + masterKey,
-//                                                    it.id.substring(0, 16)
-//                                                )
-
-                                                onInitializationCompleteListener.onInitializationSuccess()
-                                                try {
-                                                    INSTANCE!!.decodeDeviceVariantAndTestType(
-                                                        generatedAuthToken!!
-                                                    )
-                                                } catch (e: Exception) {
-                                                    /**
-                                                     * This catch block executed if jwt token can't be decoded.*/
-                                                    onInitializationCompleteListener.onInitializationFailed(
-                                                        "${SpandanException.InvalidSessionException.name}: The session is not valid. Please re-initialise the Spandan SDK. Error Code: 4"
-                                                    )
-                                                }
-                                            }
-                                        } else {
-                                            mixPanelHelper.sendToMixpanel(
-                                                eventName = SDK_INITIALISE_FAILED,
-                                                key = arrayListOf(MASTER_KEY, REASON),
-                                                value = arrayListOf(
-                                                    masterKey,
-                                                    "Internal server error. Please contact Sunfox support team"
-                                                )
-                                            )
-                                            onInitializationCompleteListener.onInitializationFailed(
-                                                "Internal server error. Please contact Sunfox support team"
-                                            )
-                                        }
-                                    }
-                                }
-
-                                override fun onFailure(
-                                    call: Call<GenerateAuthTokenResult>,
-                                    t: Throwable,
-                                ) {
-                                    Log.d("Spandan.TAG", "onFailure: ${t.toString()}")
+//                                    } else {
+//                                        mixPanelHelper.sendToMixpanel(
+//                                            eventName = SDK_INITIALISE_FAILED,
+//                                            key = arrayListOf(
+//                                                MASTER_KEY,
+//                                                REASON
+//                                            ),
+//                                            value = arrayListOf(
+//                                                masterKey,
+//                                                authTokenResult.message
+//                                            )
+//                                        )
+//                                        onInitializationCompleteListener.onInitializationFailed(authTokenResult.message)
+//                                    }
+                                } else {
                                     mixPanelHelper.sendToMixpanel(
                                         eventName = SDK_INITIALISE_FAILED,
-                                        key = arrayListOf(
-                                            MASTER_KEY,
-                                            REASON
-                                        ),
+                                        key = arrayListOf(MASTER_KEY, REASON),
                                         value = arrayListOf(
                                             masterKey,
-                                            if (t.message != null) "Initialization failed: ${t.message}"
-                                            else "Initialisation failed. Please contact Sunfox support team"
+                                            "Internal server error. Please contact Sunfox support team"
                                         )
                                     )
                                     onInitializationCompleteListener.onInitializationFailed(
-                                        if (t.message != null) "Initialization failed: ${t.message}"
-                                        else "Initialisation failed. Please contact Sunfox support team"
+                                        "Internal server error. Please contact Sunfox support team"
                                     )
                                 }
-                            })
+                            } else {
+                                val errorBody = response.message.toString()
+//                                val errorMsg = when (response.code()) {
+//                                    401 -> Gson().fromJson(errorBody, ErrorResponse::class).message
+//                                    else -> "Internal server error. Please contact Sunfox support team"
+//                                }
+
+                                mixPanelHelper.sendToMixpanel(
+                                    eventName = SDK_INITIALISE_FAILED,
+                                    key = arrayListOf(
+                                        MASTER_KEY,
+                                        REASON
+                                    ),
+                                    value = arrayListOf(
+                                        masterKey,
+                                        errorBody
+                                    )
+                                )
+                                onInitializationCompleteListener.onInitializationFailed(errorBody)
+                            }
+                        } catch (e: IOException) {
+//                            Log.d("Spandan.TAG", "onFailure: ${e.toString()}")
+                            mixPanelHelper.sendToMixpanel(
+                                eventName = SDK_INITIALISE_FAILED,
+                                key = arrayListOf(
+                                    MASTER_KEY,
+                                    REASON
+                                ),
+                                value = arrayListOf(
+                                    masterKey,
+                                    "Initialization failed: ${e.message ?: "Unknown error"}"
+                                )
+                            )
+                            onInitializationCompleteListener.onInitializationFailed(
+                                "Initialization failed: ${e.message ?: "Unknown error"}"
+                            )
+                        }
                     }
+
                 }
+            }
             }
         }
 
@@ -261,15 +276,15 @@ class SpandanSDK private constructor() {
         this.onDeviceConnectionStateChangeListener = onDeviceConnectionStateChangeListener
     }
 
-    fun bind(application: Application) {
-        SeriCom.initialize(application)
+    fun bind(application: Any) {
+        getInitializer().initialize(application)
         this.application = application
-        if (!SeriCom.isDeviceConnected()) {
+        if (isDeviceConnected()) {
             isDeviceConnected = true
         }
 
-        SeriCom.setOnConnectionChangeListener(object : OnConnectionStateChangeListener {
-            override fun onConnectionError(errorCode: DeviceErrorState, errorMessage: String?) {
+        val connectionStateListener=object :ConnectionStateListener{
+            override fun onConnectionError(errorCode: DeviceErrorState) {
                 when (errorCode) {
                     DeviceErrorState.CONNECTION -> {}
                     DeviceErrorState.PERMISSION_DENIED -> {
@@ -278,6 +293,7 @@ class SpandanSDK private constructor() {
 
                     DeviceErrorState.ENDPOINT -> {}
                     DeviceErrorState.USB_REQUEST -> {}
+                    DeviceErrorState.BLUETOOTH_NOT_POWERED_ON ->{}
                 }
             }
 
@@ -298,26 +314,46 @@ class SpandanSDK private constructor() {
                     )
                 )
                 sendCommand = "c"
-                SeriCom.sendCommand(sendCommand)
-                val handler1 = Handler(Looper.getMainLooper())
-                handler1.postDelayed({
+                getCommunicator().sendCommand(sendCommand)
+
+//                val handler1 = Handler(Looper.getMainLooper())
+//                handler1.postDelayed({
+//                    if (!isDeviceVerified) {
+//                        mixPanelHelper.sendToMixpanel(
+//                            eventName = DEVICE_CONNECTION_TIMEOUT,
+//                            key = arrayListOf(
+//                                MASTER_KEY
+////                                , CONNECTED_DEVICE_TYPE
+//                            ),
+//                            value = arrayListOf(
+//                                masterKey,
+////                                if (getVariant() != "") getVariant() else {
+////                                    "device not verified yet."
+////                                }
+//                            )
+//                        )
+//                        onDeviceConnectionStateChangeListener?.onConnectionTimedOut()
+//                    }
+//                }, 5000)
+                GlobalScope.launch(Dispatchers.Main) {
+                    delay(5000)
                     if (!isDeviceVerified) {
                         mixPanelHelper.sendToMixpanel(
                             eventName = DEVICE_CONNECTION_TIMEOUT,
                             key = arrayListOf(
                                 MASTER_KEY
-//                                , CONNECTED_DEVICE_TYPE
+                                // , CONNECTED_DEVICE_TYPE
                             ),
                             value = arrayListOf(
-                                masterKey,
-//                                if (getVariant() != "") getVariant() else {
-//                                    "device not verified yet."
-//                                }
+                                masterKey
+                                // if (getVariant() != "") getVariant() else {
+                                //     "device not verified yet."
+                                // }
                             )
                         )
                         onDeviceConnectionStateChangeListener?.onConnectionTimedOut()
                     }
-                }, 5000)
+                }
             }
 
             override fun onDeviceDisconnected() {
@@ -341,12 +377,30 @@ class SpandanSDK private constructor() {
             }
 
             override fun onReceivedData(data: String) {
-                populateDeviceInfo(data)
+                if(sendCommand =="c" && platform.name.contains("iOS"))
+                    populateDeviceInfo(convertHexToAsciiAndKeepHex(data))
+                else
+                    populateDeviceInfo(data)
             }
 
-        })
+        }
+        setListener().setOnConnectionStateListener(connectionStateListener=connectionStateListener)
     }
-
+    fun convertHexToAsciiAndKeepHex(hex: String): String {
+        val parts = hex.split("2d") // Split the hex string at each occurrence of "2D"
+        val result = StringBuilder()
+        for (i in parts.indices) {
+            if (i < parts.size - 1) {
+                // Convert each part to ASCII text except the last one
+                result.append(parts[i].chunked(2).map { it.toInt(16).toChar() }.joinToString(""))
+                result.append("-")
+            } else {
+                // Keep the last part as hex
+                result.append(parts[i])
+            }
+        }
+        return result.toString()
+    }
     private fun getDeviceVariantString(): String {
         var deviceVariant = ""
         deviceInfo.let {
@@ -487,17 +541,20 @@ class SpandanSDK private constructor() {
     }
 
     fun isDeviceConnected(): Boolean {
-        return SeriCom.isDeviceConnected()
+        return getCommunicator().getDeviceConnected()
+//        return SeriCom.isDeviceConnected()
     }
 
     fun unbind() {
         deviceInfo.let {
             if (it != null)
-                SeriCom.sendCommand(if (it.deviceVariant == SpandanDeviceVariant.SPANDAN_LEGACY) "0" else if (it.deviceVariant == SpandanDeviceVariant.SPANDAN_NEO) "STP" else "0")
+                getCommunicator().sendCommand(
+              if (it.deviceVariant == SpandanDeviceVariant.SPANDAN_LEGACY) "0" else if (it.deviceVariant == SpandanDeviceVariant.SPANDAN_NEO) "STP" else "0")
             else
                 throw SpandanSDKException(SpandanException.DeviceNotConnectedException.name + ": Spandan device not connected. Please connect the device")
         }
-        SeriCom.clearInstance()
+        getCommunicator().clearInstance()
+
     }
 
     fun generateReport(
@@ -550,7 +607,7 @@ class SpandanSDK private constructor() {
         val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
             val error = StringBuilder()
             error.append(throwable.message)
-            throwable.stackTrace.forEach {
+            throwable.stackTraceToString().forEach {
                 error.append("$it \n")
             }
             mixPanelHelper.sendToMixpanel(
@@ -575,7 +632,7 @@ class SpandanSDK private constructor() {
             value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name),
             true
         )
-        CoroutineScope(IO).launch(exceptionHandler) {
+        CoroutineScope(Dispatchers.IO).launch(exceptionHandler) {
             supervisorScope {
                 val reportGenerationTask = async {
                     ecgTestInstance.checkForDataValidation(ecgData).let {
@@ -816,46 +873,45 @@ class SpandanSDK private constructor() {
                 /**
                  * prepare data for the ecg processor api*/
                 apiEcgData = ApiEcgData(
-                    v1Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.V1].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
-                    ),
+
+//                    v1Data =
+//                    Base64.encode(
+//                        ecgTest._ecgData[EcgPosition.V1].toString().toByteArray(Charsets.UTF_8), Base64.Default
+//                    ),
+                    v1Data = encodeToBase64(ecgTest._ecgData[EcgPosition.V1].toString()),
 
                     v2Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.V2].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
-                    ),
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V2].toString()),
 
                     v3Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.V3].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V3].toString()
                     ),
 
                     v4Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.V4].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V4].toString()
                     ),
 
                     v5Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.V5].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V5].toString()
                     ),
 
                     v6Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.V6].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V6].toString()
                     ),
 
                     lead1Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.LEAD_1].toString().toByteArray(Charsets.UTF_8),
-                        Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.LEAD_1].toString()
                     ),
 
                     lead2Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[EcgPosition.LEAD_2].toString().toByteArray(Charsets.UTF_8),
-                        Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.LEAD_2].toString()
                     )
                 )
 
@@ -866,9 +922,8 @@ class SpandanSDK private constructor() {
             (EcgTestType.LEAD_TWO) -> {
                 apiEcgData = ApiEcgData(
                     lead2Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[LEAD_2].toString().toByteArray(Charsets.UTF_8),
-                        Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.LEAD_2].toString()
                     )
                 )
             }
@@ -877,40 +932,40 @@ class SpandanSDK private constructor() {
 
                 apiEcgData = ApiEcgData(
                     v1Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[V1].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V1].toString()
                     ),
 
                     v2Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[V2].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V2].toString()
                     ),
 
                     v3Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[V3].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V3].toString()
                     ),
 
                     v4Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[V4].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V4].toString()
                     ),
 
                     v5Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[V5].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V5].toString()
                     ),
 
                     v6Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[V6].toString().toByteArray(Charsets.UTF_8), Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.V6].toString()
                     ),
 
                     lead2Data =
-                    Base64.encodeToString(
-                        ecgTest._ecgData[LEAD_2].toString().toByteArray(Charsets.UTF_8),
-                        Base64.DEFAULT
+                    encodeToBase64(
+                        ecgTest._ecgData[EcgPosition.LEAD_2].toString()
                     )
+
                 )
 
             }
@@ -957,163 +1012,129 @@ class SpandanSDK private constructor() {
                 true
             )
 
-            RetrofitHelper()
-                .getRetrofitInstance()
-                .generatePdfReport(
-                    authorization = verifierToken,
-                    apiKey = masterKey,
-                    generatePdfReportInputData = inputForProcessApi
-                )
-                .enqueue(object : Callback<GeneratePdfReportResult> {
+            CoroutineScope(Dispatchers.IO).launch {
+                val helper = RetrofitHelper()
+                try {
+                    val result = helper.getRetrofitInstance()
+                        .generatePdfReport(
+                            authorization = verifierToken,
+                            apiKey = masterKey,
+                            generatePdfReportInputData = inputForProcessApi
+                        )
 
-                    override fun onResponse(
-                        call: Call<GeneratePdfReportResult>,
-                        response: Response<GeneratePdfReportResult>,
-                    ) {
-                        var errorMsg = StringBuffer("")
-                        if (!response.isSuccessful) {
-                            val errorBody = Gson().fromJson(
-                                Gson().toJson((response.errorBody() as ResponseBody).string()),
-                                ErrorResponse::class.java
+                    if (result.success) {
+
+                        val pdfResult = result.data
+                        pdfReportGenerationCallback.onReportGenerationSuccess(pdfResult)
+                    } else {
+                        val errorMsg = result.message
+                        mixPanelHelper.sendToMixpanel(
+                            eventName = Const.GENERATE_REPORT_FAILED,
+                            key = arrayListOf(
+                                MASTER_KEY,
+                                CONNECTED_DEVICE_TYPE,
+                                TEST_TYPE,
+                                REASON
+                            ),
+                            value = arrayListOf(
+                                masterKey,
+                                getDeviceVariantString(),
+                                ecgTestType.name,
+                                errorMsg
                             )
-                            errorMsg = when (response.code()) {
-                                400 -> StringBuffer(errorBody.message)
-                                401 -> StringBuffer(errorBody.message) //authorization
-                                else -> StringBuffer("Internal server error. Please contact Sunfox support team")
-                            }
-                            errorMsg.append("If the error occurs repeatedly, please contact Sunfox support.")
-                            mixPanelHelper.sendToMixpanel(
-                                eventName = Const.GENERATE_REPORT_FAILED,
-                                key = arrayListOf(
-                                    MASTER_KEY,
-                                    CONNECTED_DEVICE_TYPE,
-                                    TEST_TYPE,
-                                    REASON
-                                ),
-                                value = arrayListOf(
-                                    masterKey,
-                                    getDeviceVariantString(),
-                                    ecgTestType.name,
-                                    errorMsg.toString()
-                                )
-                            )
-                            pdfReportGenerationCallback.onReportGenerationFailed(errorMsg.toString())
-                        }
-
-                        response.body().let { ecgApiResult ->
-                            if (ecgApiResult != null && ecgApiResult.success) {
-                                pdfReportGenerationCallback.onReportGenerationSuccess(
-                                    ecgApiResult.data
-                                )
-                            } else {
-                                mixPanelHelper.sendToMixpanel(
-                                    eventName = Const.GENERATE_REPORT_FAILED,
-                                    key = arrayListOf(
-                                        MASTER_KEY,
-                                        CONNECTED_DEVICE_TYPE,
-                                        TEST_TYPE,
-                                        REASON
-                                    ),
-                                    value = arrayListOf(
-                                        masterKey,
-                                        getDeviceVariantString(),
-                                        ecgTestType.name,
-                                        ecgApiResult?.message ?: ""
-                                    )
-                                )
-                                pdfReportGenerationCallback.onReportGenerationFailed(
-                                    ecgApiResult?.message ?: response.message()
-                                )
-                            }
-                        }
+                        )
+                        pdfReportGenerationCallback.onReportGenerationFailed(errorMsg)
                     }
+                } catch (e: Exception) {
+                    val errorMsg = "Failed to push ECG test log: ${e.message}"
+                    print(errorMsg)
+                    // Handle network exceptions or other errors
+                }
+            }
 
-                    override fun onFailure(call: Call<GeneratePdfReportResult>, t: Throwable) {
-                        pdfReportGenerationCallback.onReportGenerationFailed(t.stackTraceToString())
-                    }
-                })
+
+
         }
     }
 
 
     private fun isTokenExpired(token: String, sessionId: String?): Boolean {
-        val data = JWT(authenticationHelper.decrypt(token))
-        return !(data.claims["sid"]!!.asString().equals(sessionId, false))
+//        val data = JWT(authenticationHelper.decrypt(token))
+//        return !(data.claims["sid"]!!.asString().equals(sessionId, false))
+        return false
     }
 
     private fun isOfflineTokenExpired(token: String): Boolean {
-        val data = JWT(authenticationHelper.decrypt(token))
-        return try {
-            if (data.claims["exp"] != null) {
-                //for old token expiry check
-                (data.claims["exp"]!!.asLong()!! < (System.currentTimeMillis()))
-            } else {
-                //for new token expiry check
-                !data.claims["isOffLine"]!!.asBoolean()!!
-            }
-        } catch (e: Exception) {
-            !data.claims["isOffLine"]!!.asBoolean()!!
-        }
+//        val data = JWT(authenticationHelper.decrypt(token))
+//        return try {
+//            if (data.claims["exp"] != null) {
+//                //for old token expiry check
+//                (data.claims["exp"]!!.asLong()!! < (Clock.System.now().toEpochMilliseconds()))
+//            } else {
+//                //for new token expiry check
+//                !data.claims["isOffLine"]!!.asBoolean()!!
+//            }
+//        } catch (e: Exception) {
+//            !data.claims["isOffLine"]!!.asBoolean()!!
+//        }
+        return true;
     }
 
     private fun getListOfTestFromAuth(token: String): List<EcgTestType> {
-        val data = JWT(authenticationHelper.decrypt(token))
+//        val data = JWT(authenticationHelper.decrypt(token))
         val ecgTestTypeList = arrayListOf<EcgTestType>()
-        (data.claims["ta"])!!.asString()!!.split(Regex(",")).forEach {
-            if (it.contains(EcgTestType.LEAD_TWO.name))
+//        (data.claims["ta"])!!.asString()!!.split(Regex(",")).forEach {
+//            if (it.contains(EcgTestType.LEAD_TWO.name))
                 ecgTestTypeList.add(EcgTestType.LEAD_TWO)
-            else if (it.contains(EcgTestType.TWELVE_LEAD.name))
+//            else if (it.contains(EcgTestType.TWELVE_LEAD.name))
                 ecgTestTypeList.add(EcgTestType.TWELVE_LEAD)
-            else if (it.contains(EcgTestType.HYPERKALEMIA.name))
+//            else if (it.contains(EcgTestType.HYPERKALEMIA.name))
                 ecgTestTypeList.add(EcgTestType.HYPERKALEMIA)
-            else
+//            else
                 ecgTestTypeList.add(EcgTestType.HRV)
-        }
+//        }
         return ecgTestTypeList
     }
 
     private fun getEnabledDeviceTypeFromAuth(token: String): List<SpandanDeviceVariant> {
-        val data = JWT(authenticationHelper.decrypt(token))
+//        val data = JWT(authenticationHelper.decrypt(token))
         val deviceVariantList = arrayListOf<SpandanDeviceVariant>()
-        (data.claims["de"])!!.asString()!!.split(Regex(",")).forEach {
-            if (it.contains(SpandanDeviceVariant.SPANDAN_NEO.name))
+//        (data.claims["de"])!!.asString()!!.split(Regex(",")).forEach {
+//            if (it.contains(SpandanDeviceVariant.SPANDAN_NEO.name))
                 deviceVariantList.add(SpandanDeviceVariant.SPANDAN_NEO)
-            else if (it.contains(SpandanDeviceVariant.SPANDAN_PRO.name))
+//            else if (it.contains(SpandanDeviceVariant.SPANDAN_PRO.name))
                 deviceVariantList.add(SpandanDeviceVariant.SPANDAN_PRO)
-            else
+//            else
                 deviceVariantList.add(SpandanDeviceVariant.SPANDAN_LEGACY)
-        }
+//        }
         return deviceVariantList//for checking enabled device type(Neo, Pro or Legacy) from device
     }
 
-    private fun isUiEnabled(token: String): Boolean {
-        val data = JWT(authenticationHelper.decrypt(token))
-        return data.claims["eUi"].let {
-            if (it != null)
-                it.asBoolean()!!
-            else
-                false
-        }
-    }
+
 
     private fun isGenerateReport(token: String): Boolean {
         //this method is called to check if the client have access to the generate the report.
-        val data = JWT(authenticationHelper.decrypt(token))
-        return data.claims["eG"].let {
-            if (it != null)
-                it.asBoolean()!!
-            else
-                false
-        }
+//        val data = JWT(authenticationHelper.decrypt(token))
+//        return data.claims["eG"].let {
+//            if (it != null)
+//                it.asBoolean()!!
+//            else
+//                false
+//        }
+        return true
     }
 
     private fun createSessionId(): String {
         val allowedCharacters = "0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
         val sizeOfRandomString = 64
-        val random = Random()
+//        val random = Random()
         val sessionId = StringBuilder(sizeOfRandomString)
         for (i in 0 until sizeOfRandomString)
-            sessionId.append(allowedCharacters[random.nextInt(allowedCharacters.length)])
+            sessionId.append(allowedCharacters[Random.nextInt(allowedCharacters.length)])
         return sessionId.toString()
+    }
+    fun encodeToBase64(input: String): String {
+//        return input.encodeUtf8().encodeBase64().utf8()
+        return input.encodeUtf8().base64().encodeBase64()
     }
 }

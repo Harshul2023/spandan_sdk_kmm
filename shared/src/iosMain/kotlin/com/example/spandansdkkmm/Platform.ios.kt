@@ -93,6 +93,10 @@ class IOSCommunicator : Communicate {
     override fun getDeviceConnected(): Boolean {
         return SeriCom.isDeviceConnected()
     }
+
+    override fun clearInstance() {
+
+    }
 }
 class Authentication: AuthenticationHelper {
 

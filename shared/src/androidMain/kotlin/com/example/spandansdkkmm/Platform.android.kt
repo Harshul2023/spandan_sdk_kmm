@@ -88,6 +88,10 @@ class AndroidCommunicator : Communicate {
     override fun getDeviceConnected(): Boolean {
        return  SeriCom.isDeviceConnected()
     }
+
+    override fun clearInstance() {
+        TODO("Not yet implemented")
+    }
 }
 class Authentication : AuthenticationHelper{
     override fun decrypt(strToDecrypt: String?, key: String, iv: String): String {
