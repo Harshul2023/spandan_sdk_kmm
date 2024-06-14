@@ -1,5 +1,7 @@
 package com.example.spandansdkkmm.listener
 
+import com.example.spandansdkkmm.enums.DeviceErrorState
+
 interface ConnectionStateListener {
     fun onConnectionError(errorCode: DeviceErrorState)
     fun onDeviceAttached()

@@ -100,6 +100,7 @@ kotlin {
             implementation("io.ktor:ktor-client-cio:2.3.11")
 
             implementation("io.ktor:ktor-client-logging:2.3.11")
+            implementation("com.squareup.okio:okio:3.9.0")
 
             val core = "0.5.1"
             implementation("org.kotlincrypto.core:digest:$core")

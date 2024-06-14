@@ -58,6 +58,7 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import okio.ByteString.Companion.decodeBase64
 import okio.ByteString.Companion.encodeUtf8
 import kotlin.concurrent.Volatile
 import kotlin.io.encoding.Base64
@@ -111,17 +112,19 @@ class SpandanSDK private constructor() {
         @JvmStatic
         private fun getSessionId() = sessionId
 
-        fun decodeBase64ToString(base64String: String): String {
-            return decodeBase64ToString(base64String)
-        }
-        @OptIn(ExperimentalEncodingApi::class)
-        @JvmStatic
-        fun initializeOffline(application: Any, token: String) {
-            CoroutineScope(Dispatchers.IO).launch {
+
+
+        fun base64Encoded(input: String): String = input.encodeUtf8().base64()
+
+        fun decodeBase64ToString(input: String): String = input.decodeBase64()!!.utf8()
+
+
+        public fun initializeOffline(application: Any, token: String) {
+            CoroutineScope(Dispatchers.Main).launch {
                 val mutex = Mutex()
                 mutex.withLock {
                     masterKey = token
-                    mixPanelHelper = MixPanelHelper.getInstance(application)
+//                    mixPanelHelper = MixPanelHelper.getInstance(application)
                     if (INSTANCE == null) {
                         INSTANCE = SpandanSDK()
                         val w = decodeBase64ToString(token)
@@ -142,10 +145,7 @@ class SpandanSDK private constructor() {
             }
         }
 
-
-        @OptIn(InternalCoroutinesApi::class)
-        @JvmStatic
-        fun initialize(
+        public fun initialize(
             application: Any,
             verifierToken: String,
             masterKey: String,
@@ -153,10 +153,10 @@ class SpandanSDK private constructor() {
         ) {
             /**
              * @param organizationUniqueId can be used to uniquely identified the package name.**/
-            CoroutineScope(Dispatchers.IO).launch {
+            CoroutineScope(Dispatchers.Main).launch {
 val mutex = Mutex()
             mutex.withLock {
-                mixPanelHelper = MixPanelHelper.getInstance(application)
+//                mixPanelHelper = MixPanelHelper.getInstance(application)
                 SpandanSDK.masterKey = masterKey
                 SpandanSDK.verifierToken = verifierToken
                 if (INSTANCE == null) {
