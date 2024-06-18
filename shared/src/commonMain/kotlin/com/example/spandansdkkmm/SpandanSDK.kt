@@ -120,30 +120,33 @@ class SpandanSDK private constructor() {
 
 
         public fun initializeOffline(application: Any, token: String) {
-            CoroutineScope(Dispatchers.Main).launch {
-                val mutex = Mutex()
-                mutex.withLock {
+//            CoroutineScope(Dispatchers.Main).launch {
+//                val mutex = Mutex()
+//                mutex.withLock {
                     masterKey = token
 //                    mixPanelHelper = MixPanelHelper.getInstance(application)
                     if (INSTANCE == null) {
                         INSTANCE = SpandanSDK()
-                        val w = decodeBase64ToString(token)
-                        val id = w.substring(0, 64)
-                        val createdAt = w.substring(65, 78)
-                        val masterKey = w.substring(79, 95)
-                        generatedAuthToken = w.substring(96, token.length)
-                        INSTANCE!!.authenticationHelper =
-                            AuthenticationHelper(
-                                id = id,
-                                createdAt = createdAt,
-                                masterKey = masterKey
-                            )
+                        INSTANCE!!.bind(application)
+//                        val w = decodeBase64ToString(token)
+//                        val id = w.substring(0, 64)
+//                        val createdAt = w.substring(65, 78)
+//                        val masterKey = w.substring(79, 95)
+//                        generatedAuthToken = w.substring(96, token.length)
+//                        INSTANCE!!.authenticationHelper =
+//                            AuthenticationHelper(
+//                                id = id,
+//                                createdAt = createdAt,
+//                                masterKey = masterKey
+//                            )
                         if (INSTANCE!!.validateOfflineAuthKey(token)) INSTANCE!!.bind(application)
-                        else throw SpandanSDKException("${SpandanException.SDKNotInitialisedException.name}: Could not initialise Spandan SDK. The token is invalid. Please check the token and try again.")
+//                        else throw SpandanSDKException("${SpandanException.SDKNotInitialisedException.name}: Could not initialise Spandan SDK. The token is invalid. Please check the token and try again.")
                     }
-                }
-            }
+//                }
+//            }
         }
+
+
 
         public fun initialize(
             application: Any,
@@ -303,18 +306,30 @@ val mutex = Mutex()
             }
 
             override fun onDeviceConnected() {
-                mixPanelHelper.sendToMixpanel(
-                    eventName = DEVICE_CONNECTED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
-                    value = arrayListOf(
-                        masterKey,
-                        if (getDeviceVariantString() != "") getDeviceVariantString() else {
-                            "device not verified yet."
-                        }
-                    )
-                )
-                sendCommand = "c"
-                getCommunicator().sendCommand(sendCommand)
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = DEVICE_CONNECTED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        if (getDeviceVariantString() != "") getDeviceVariantString() else {
+//                            "device not verified yet."
+//                        }
+//                    )
+//                )
+                if(platform.name.contains("iOS")){
+                    GlobalScope.launch(Dispatchers.Main) {
+                        delay(2000)
+                        sendCommand = "c"
+                        getCommunicator().sendCommand(sendCommand)
+//                    }
+                    }
+
+                }
+                else{
+                    sendCommand = "c"
+                    getCommunicator().sendCommand(sendCommand)
+                }
+
 
 //                val handler1 = Handler(Looper.getMainLooper())
 //                handler1.postDelayed({
@@ -337,37 +352,37 @@ val mutex = Mutex()
 //                }, 5000)
                 GlobalScope.launch(Dispatchers.Main) {
                     delay(5000)
-                    if (!isDeviceVerified) {
-                        mixPanelHelper.sendToMixpanel(
-                            eventName = DEVICE_CONNECTION_TIMEOUT,
-                            key = arrayListOf(
-                                MASTER_KEY
-                                // , CONNECTED_DEVICE_TYPE
-                            ),
-                            value = arrayListOf(
-                                masterKey
-                                // if (getVariant() != "") getVariant() else {
-                                //     "device not verified yet."
-                                // }
-                            )
-                        )
-                        onDeviceConnectionStateChangeListener?.onConnectionTimedOut()
-                    }
+//                    if (!isDeviceVerified) {
+//                        mixPanelHelper.sendToMixpanel(
+//                            eventName = DEVICE_CONNECTION_TIMEOUT,
+//                            key = arrayListOf(
+//                                MASTER_KEY
+//                                // , CONNECTED_DEVICE_TYPE
+//                            ),
+//                            value = arrayListOf(
+//                                masterKey
+//                                // if (getVariant() != "") getVariant() else {
+//                                //     "device not verified yet."
+//                                // }
+//                            )
+//                        )
+//                        onDeviceConnectionStateChangeListener?.onConnectionTimedOut()
+//                    }
                 }
             }
 
             override fun onDeviceDisconnected() {
                 val deviceVariant = getDeviceVariantString()
-                mixPanelHelper.sendToMixpanel(
-                    eventName = DEVICE_DISCONNECTED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
-                    value = arrayListOf(
-                        masterKey,
-                        if (deviceVariant != "") deviceVariant else {
-                            "device not verified yet."
-                        }
-                    )
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = DEVICE_DISCONNECTED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        if (deviceVariant != "") deviceVariant else {
+//                            "device not verified yet."
+//                        }
+//                    )
+//                )
                 isDeviceConnected = false
                 isDeviceVerified = false
 
@@ -377,8 +392,10 @@ val mutex = Mutex()
             }
 
             override fun onReceivedData(data: String) {
-                if(sendCommand =="c" && platform.name.contains("iOS"))
+                if(sendCommand =="c" && platform.name.contains("iOS")) {
+
                     populateDeviceInfo(convertHexToAsciiAndKeepHex(data))
+                }
                 else
                     populateDeviceInfo(data)
             }
@@ -691,6 +708,8 @@ val mutex = Mutex()
     }
 
     private fun populateDeviceInfo(data: String) {
+//        onDeviceConnectionStateChangeListener?.onDeviceConnected(DeviceInfo(SpandanDeviceVariant.SPANDAN_LEGACY,null,null,null)
+//        )
         if (deviceInfo == null) {
             deviceInfo = DeviceInfo()
         }
@@ -702,7 +721,7 @@ val mutex = Mutex()
                 if (sendCommand == "c") {
                     //check for b2b device
                     if (dataArray[2].substring(0, 4).equals("#b2b", true)) {
-                        if (dataArray[2].substring(4) == masterKey) {
+//                        if (dataArray[2].substring(4) == masterKey) {
                             isDeviceVerified =
                                 (dataArray[0].contains(Regex("spdn")) || dataArray[0].contains(
                                     Regex("splg")
@@ -722,15 +741,17 @@ val mutex = Mutex()
                                     deviceId = dataArray[2]
                                 }
                             }
-                            mixPanelHelper.sendToMixpanel(
-                                eventName = DEVICE_VERIFIED,
-                                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
-                                value = arrayListOf(masterKey, getDeviceVariantString())
-                            )
+//                            mixPanelHelper.sendToMixpanel(
+//                                eventName = DEVICE_VERIFIED,
+//                                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
+//                                value = arrayListOf(masterKey, getDeviceVariantString())
+//                            )
+                            print(deviceInfo)
+                            isDeviceVerified = true
                             if (isDeviceVerified) onDeviceConnectionStateChangeListener?.onDeviceConnected(
                                 deviceInfo!!
                             )
-                        }
+//                        }
                     } else {
                         //check for normal device
                         isDeviceVerified =
@@ -773,11 +794,11 @@ val mutex = Mutex()
                                 }
                             }
                         }
-                        mixPanelHelper.sendToMixpanel(
-                            eventName = DEVICE_VERIFIED,
-                            key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
-                            value = arrayListOf(masterKey, getDeviceVariantString())
-                        )
+//                        mixPanelHelper.sendToMixpanel(
+//                            eventName = DEVICE_VERIFIED,
+//                            key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
+//                            value = arrayListOf(masterKey, getDeviceVariantString())
+//                        )
                         if (isDeviceVerified) onDeviceConnectionStateChangeListener?.onDeviceConnected(
                             deviceInfo!!
                         )
@@ -818,11 +839,11 @@ val mutex = Mutex()
                         this.deviceVariant = mapDeviceVariantToVariantEnum(data)
                     }
                 }
-                mixPanelHelper.sendToMixpanel(
-                    eventName = DEVICE_VERIFIED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
-                    value = arrayListOf(masterKey, getDeviceVariantString())
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = DEVICE_VERIFIED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE),
+//                    value = arrayListOf(masterKey, getDeviceVariantString())
+//                )
                 if (isDeviceVerified) onDeviceConnectionStateChangeListener?.onDeviceConnected(
                     deviceInfo!!
                 )

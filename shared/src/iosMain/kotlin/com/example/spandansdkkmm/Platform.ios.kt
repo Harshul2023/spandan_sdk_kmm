@@ -53,6 +53,7 @@ class IOSListener:InitializeListener{
 
             override fun onReceivedData(data: String) {
 
+//                print("receievec"+data)
                     connectionStateListener.onReceivedData(data)
 //                }
             }
