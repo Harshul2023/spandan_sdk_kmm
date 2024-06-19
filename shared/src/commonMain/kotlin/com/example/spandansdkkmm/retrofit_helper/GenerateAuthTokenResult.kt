@@ -1,7 +1,9 @@
 package com.example.spandansdkkmm.retrofit_helper
 
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class GenerateAuthTokenResult(
     @SerialName("message")
     var message: String,
@@ -12,7 +14,7 @@ data class GenerateAuthTokenResult(
     @SerialName("id")
     var id:String,
     @SerialName("status")
-    var status:String,
+    var status: String? = null,
     @SerialName("success")
     var success:Boolean
 )

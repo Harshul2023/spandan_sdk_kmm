@@ -2,6 +2,8 @@
 package com.example.spandansdkkmm
 
 import com.example.spandansdkkmm.listener.ConnectionStateListener
+import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
 
 interface Platform {
     val name: String
@@ -31,3 +33,4 @@ expect fun getCommunicator(): Communicate
 expect fun setListener():  InitializeListener
 
 expect fun authenticationHelper():AuthenticationHelper
+expect fun httpClient(config: HttpClientConfig<*>.() -> Unit = {}): HttpClient

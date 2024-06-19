@@ -1,27 +1,21 @@
+import com.example.spandansdkkmm.httpClient
 import com.example.spandansdkkmm.retrofit_helper.EcgTestLogResponse
 import com.example.spandansdkkmm.retrofit_helper.GenerateAuthTokenResult
 import com.example.spandansdkkmm.retrofit_helper.GeneratePdfReportInputData
 import com.example.spandansdkkmm.retrofit_helper.GeneratePdfReportResult
 import io.ktor.client.*
 import io.ktor.client.call.body
-import io.ktor.client.call.receive
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.ClientRequestException
-import io.ktor.client.plugins.HttpResponseValidator
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.kotlinx.serializer.KotlinxSerializer
-import io.ktor.client.plugins.logging.DEFAULT
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.plugins.observer.ResponseObserver
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
+
 import io.ktor.util.InternalAPI
+import io.ktor.utils.io.errors.IOException
+
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonConfiguration
+
 
 class RetrofitHelper {
 
@@ -31,52 +25,103 @@ class RetrofitHelper {
 
     @OptIn(InternalAPI::class)
     fun getRetrofitInstance(): GenerateAuthTokenAPI {
-        val client = HttpClient(CIO) {
-            install(Logging) {
-                logger = Logger.DEFAULT
-                level = LogLevel.BODY
-            }
-            install(HttpTimeout) {
-                requestTimeoutMillis = 2 * 60 * 1000 // 2 minutes in milliseconds
-            }
-//            install(KotlinxSerializer) {
-//                val jsonConfig = JsonConfiguration(encodeDefaults = true)
-//                json = Json(jsonConfig)
+      val client = httpClient()
+//        val client = HttpClient(CIO) {
+//            install(Logging) {
+//                logger = Logger.DEFAULT
+//                level = LogLevel.BODY
 //            }
-            defaultRequest {
-                contentType(ContentType.Application.Json)
-                accept(ContentType.Application.Json)
-            }
-            HttpResponseValidator {
-                validateResponse { response ->
-                    val statusCode = response.status.value
-                    if (statusCode !in 200..299) {
-                        throw ClientRequestException(response, response.status.description)
-                    }
-                }
-            }
-        }
+//            install(ContentNegotiation) {
+//
+//                json(Json {
+//                    ignoreUnknownKeys = true
+//                    isLenient = true
+//                    encodeDefaults = true
+//
+//                })
+//            }
+////            install(JsonFeature) {
+////                serializer = KotlinxSerializer(Json {
+////                    ignoreUnknownKeys = true
+////                    isLenient = true
+////                    allowStructuredMapKeys = true
+////                    prettyPrint = false
+////                    useArrayPolymorphism = false
+////                })
+////            }
+//            install(HttpTimeout) {
+////                requestTimeoutMillis = 2 * 60 * 1000 // 2 minutes in milliseconds
+//                requestTimeoutMillis = 15000L// 2 minutes in milliseconds
+//            }
+//
+////            install(KotlinxSerializer) {
+////                val jsonConfig = JsonConfiguration(encodeDefaults = true)
+////                json = Json(jsonConfig)
+////            }
+//            defaultRequest {
+//                contentType(ContentType.Application.Json)
+//                accept(ContentType.Application.Json)
+//            }
+//            HttpResponseValidator {
+//                validateResponse { response ->
+//                    val statusCode = response.status.value
+//                    if (statusCode !in 200..299) {
+//                        throw ClientRequestException(response, response.status.description)
+//                    }
+//                }
+//            }
+//        }
         return object : GenerateAuthTokenAPI {
+
             override suspend fun getAuthToken(
                 authorization: String,
                 sessionId: String,
                 apiKey: String
             ): GenerateAuthTokenResult {
-                val response= client.get("https://api.sunfox.in/auth/token") {
-                    header("Authorization", authorization)
-                    header("sess-id", sessionId)
-                    header("api-key", apiKey)
+                return try {
+                    val response = client.get("https://api.sunfox.in/spandan-sdk/dev/v1/auth/generate-token") {
+                        header("Authorization", authorization)
+                        header("sess-id", sessionId)
+                        header("api-key", apiKey)
+                    }
+                    if (response.status.isSuccess()) {
+                        response.body<GenerateAuthTokenResult>()
+                    } else {
+                        throw IOException("Failed to fetch token: ${response.status}")
+                    }
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    throw IOException("Failed to fetch token: ${e.message}")
                 }
-                val resultJson = response.body<GenerateAuthTokenResult>()
-                return resultJson
             }
 
+//            override suspend fun getAuthToken(
+//                authorization: String,
+//                sessionId: String,
+//                apiKey: String
+//            ): GenerateAuthTokenResult {
+//                var response: HttpResponse? =null
+//                try {
+//                 response =
+//                        client.get("https://api.sunfox.in/spandan-sdk/dev/v1/auth/generate-token") {
+//                            header("Authorization", authorization)
+//                            header("sess-id", sessionId)
+//                            header("api-key", apiKey)
+//                        }
+//                }catch (e:Exception)
+//                {
+//                    e.printStackTrace()
+//                }
+//                val resultJson = response!!.body<GenerateAuthTokenResult>()
+//                return resultJson
+//            }
+
             override  suspend fun generatePdfReport(
-                authorization: String,
+                authorization: String?,
                 apiKey: String,
                 generatePdfReportInputData: GeneratePdfReportInputData
             ): GeneratePdfReportResult {
-                val response = client.post("https://api.sunfox.in/generate-pdf-report") {
+                val response = client.post("https://api.sunfox.in/ecg-processor/dev/v3/process") {
                     header("Authorization", authorization)
                     header("api-key", apiKey)
                     body = generatePdfReportInputData
@@ -87,18 +132,26 @@ class RetrofitHelper {
             }
 
             override suspend fun pushEcgTestLog(
-                authorization: String,
+                authorization: String?,
                 apiKey: String,
                 ecgTestLogData: EcgTestLogData
             ): EcgTestLogResponse {
-                val response = client.post("https://api.sunfox.in/log-test-data") {
-                    header("Authorization", authorization)
-                    header("api-key", apiKey)
-                    body = ecgTestLogData
+                var response: HttpResponse? =null
+                try {
+                    response =
+                        client.post("https://api.sunfox.in/spandan-sdk/dev/v1/test-logs") {
+                            header("Authorization", authorization)
+                            header("api-key", apiKey)
+                            body = ecgTestLogData
+                        }
+                }catch (e:Exception)
+                {
+                    e.stackTraceToString();
                 }
 
-                val resultJson = response.body<EcgTestLogResponse>()
-                return resultJson
+                    val resultJson = response!!.body<EcgTestLogResponse>()
+                    return resultJson
+
             }
         }
     }
@@ -113,13 +166,13 @@ interface GenerateAuthTokenAPI {
     ): GenerateAuthTokenResult
 
     suspend fun generatePdfReport(
-        authorization: String,
+        authorization: String?,
         apiKey: String,
         generatePdfReportInputData: GeneratePdfReportInputData
     ): GeneratePdfReportResult
 
     suspend fun pushEcgTestLog(
-        authorization: String,
+        authorization: String?,
         apiKey: String,
         ecgTestLogData: EcgTestLogData
     ): EcgTestLogResponse

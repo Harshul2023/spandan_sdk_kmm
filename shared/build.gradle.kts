@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlinCocoapods)
     alias(libs.plugins.androidLibrary)
     id("maven-publish")
+    id ("kotlinx-serialization")
 
 }
 project.afterEvaluate {
@@ -97,7 +98,14 @@ kotlin {
             implementation("io.ktor:ktor-client-json:2.3.11")
             implementation("io.ktor:ktor-client-serialization:2.3.11")
 
-            implementation("io.ktor:ktor-client-cio:2.3.11")
+
+
+//            implementation("io.ktor:ktor-client-apache:2.3.11")
+
+
+            implementation("io.ktor:ktor-client-content-negotiation:2.3.11")
+            implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11")
+//            implementation("io.ktor:ktor-client-cio:2.3.11")
 
             implementation("io.ktor:ktor-client-logging:2.3.11")
             implementation("com.squareup.okio:okio:3.9.0")
@@ -115,11 +123,17 @@ kotlin {
         }
         val androidMain by getting {
             dependencies {
-
+                implementation("io.ktor:ktor-client-okhttp:2.3.11")
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
                 implementation ("in.sunfox.healthcare.commons.android.sericom:sericom:1.0.8")
             }
         }
+        val iosMain by creating {
+            dependencies {
+                implementation("io.ktor:ktor-client-darwin:2.3.11")
+            }
+        }
+
 
     }
 }

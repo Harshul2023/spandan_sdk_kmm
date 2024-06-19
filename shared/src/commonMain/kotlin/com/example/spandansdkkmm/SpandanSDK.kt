@@ -93,13 +93,13 @@ class SpandanSDK private constructor() {
         private var sessionId: String? = null
 
         @Volatile
-        private lateinit var mixPanelHelper: MixPanelHelper
+        private var mixPanelHelper: MixPanelHelper? = null
 
         @Volatile
         private lateinit var masterKey: String
 
         @Volatile
-        private lateinit var verifierToken: String
+        private var verifierToken: String? = null
 
         @Volatile
         private var generatedAuthToken: String? = null
@@ -128,19 +128,19 @@ class SpandanSDK private constructor() {
                     if (INSTANCE == null) {
                         INSTANCE = SpandanSDK()
                         INSTANCE!!.bind(application)
-//                        val w = decodeBase64ToString(token)
-//                        val id = w.substring(0, 64)
-//                        val createdAt = w.substring(65, 78)
-//                        val masterKey = w.substring(79, 95)
-//                        generatedAuthToken = w.substring(96, token.length)
-//                        INSTANCE!!.authenticationHelper =
-//                            AuthenticationHelper(
-//                                id = id,
-//                                createdAt = createdAt,
-//                                masterKey = masterKey
-//                            )
+                        val w = decodeBase64ToString(token)
+                        val id = w.substring(0, 64)
+                        val createdAt = w.substring(65, 78)
+                        val masterKey = w.substring(79, 95)
+                        generatedAuthToken = w.substring(93, w.length)
+                        INSTANCE!!.authenticationHelper =
+                            AuthenticationHelper(
+                                id = id,
+                                createdAt = createdAt,
+                                masterKey = masterKey
+                            )
                         if (INSTANCE!!.validateOfflineAuthKey(token)) INSTANCE!!.bind(application)
-//                        else throw SpandanSDKException("${SpandanException.SDKNotInitialisedException.name}: Could not initialise Spandan SDK. The token is invalid. Please check the token and try again.")
+                        else throw SpandanSDKException("${SpandanException.SDKNotInitialisedException.name}: Could not initialise Spandan SDK. The token is invalid. Please check the token and try again.")
                     }
 //                }
 //            }
@@ -156,9 +156,9 @@ class SpandanSDK private constructor() {
         ) {
             /**
              * @param organizationUniqueId can be used to uniquely identified the package name.**/
-            CoroutineScope(Dispatchers.Main).launch {
-val mutex = Mutex()
-            mutex.withLock {
+
+//launchval mutex = Mutex()
+//            mutex.withLock {
 //                mixPanelHelper = MixPanelHelper.getInstance(application)
                 SpandanSDK.masterKey = masterKey
                 SpandanSDK.verifierToken = verifierToken
@@ -179,11 +179,11 @@ val mutex = Mutex()
                                 val authTokenResult = response.token
                                 if (authTokenResult != null) {
 //                                    if (authTokenResult.success) {
-                                    mixPanelHelper.sendToMixpanel(
-                                        eventName = SDK_INITIALISE_COMPLETE,
-                                        key = arrayListOf(MASTER_KEY),
-                                        value = arrayListOf(masterKey)
-                                    )
+//                                    mixPanelHelper.sendToMixpanel(
+//                                        eventName = SDK_INITIALISE_COMPLETE,
+//                                        key = arrayListOf(MASTER_KEY),
+//                                        value = arrayListOf(masterKey)
+//                                    )
                                     generatedAuthToken = authTokenResult
                                     INSTANCE!!.authenticationHelper = AuthenticationHelper(
                                         response.id,
@@ -214,14 +214,14 @@ val mutex = Mutex()
 //                                        onInitializationCompleteListener.onInitializationFailed(authTokenResult.message)
 //                                    }
                                 } else {
-                                    mixPanelHelper.sendToMixpanel(
-                                        eventName = SDK_INITIALISE_FAILED,
-                                        key = arrayListOf(MASTER_KEY, REASON),
-                                        value = arrayListOf(
-                                            masterKey,
-                                            "Internal server error. Please contact Sunfox support team"
-                                        )
-                                    )
+//                                    mixPanelHelper.sendToMixpanel(
+//                                        eventName = SDK_INITIALISE_FAILED,
+//                                        key = arrayListOf(MASTER_KEY, REASON),
+//                                        value = arrayListOf(
+//                                            masterKey,
+//                                            "Internal server error. Please contact Sunfox support team"
+//                                        )
+//                                    )
                                     onInitializationCompleteListener.onInitializationFailed(
                                         "Internal server error. Please contact Sunfox support team"
                                     )
@@ -233,40 +233,40 @@ val mutex = Mutex()
 //                                    else -> "Internal server error. Please contact Sunfox support team"
 //                                }
 
-                                mixPanelHelper.sendToMixpanel(
-                                    eventName = SDK_INITIALISE_FAILED,
-                                    key = arrayListOf(
-                                        MASTER_KEY,
-                                        REASON
-                                    ),
-                                    value = arrayListOf(
-                                        masterKey,
-                                        errorBody
-                                    )
-                                )
+//                                mixPanelHelper.sendToMixpanel(
+//                                    eventName = SDK_INITIALISE_FAILED,
+//                                    key = arrayListOf(
+//                                        MASTER_KEY,
+//                                        REASON
+//                                    ),
+//                                    value = arrayListOf(
+//                                        masterKey,
+//                                        errorBody
+//                                    )
+//                                )
                                 onInitializationCompleteListener.onInitializationFailed(errorBody)
                             }
                         } catch (e: IOException) {
 //                            Log.d("Spandan.TAG", "onFailure: ${e.toString()}")
-                            mixPanelHelper.sendToMixpanel(
-                                eventName = SDK_INITIALISE_FAILED,
-                                key = arrayListOf(
-                                    MASTER_KEY,
-                                    REASON
-                                ),
-                                value = arrayListOf(
-                                    masterKey,
-                                    "Initialization failed: ${e.message ?: "Unknown error"}"
-                                )
-                            )
+//                            mixPanelHelper.sendToMixpanel(
+//                                eventName = SDK_INITIALISE_FAILED,
+//                                key = arrayListOf(
+//                                    MASTER_KEY,
+//                                    REASON
+//                                ),
+//                                value = arrayListOf(
+//                                    masterKey,
+//                                    "Initialization failed: ${e.message ?: "Unknown error"}"
+//                                )
+//                            )
                             onInitializationCompleteListener.onInitializationFailed(
                                 "Initialization failed: ${e.message ?: "Unknown error"}"
                             )
                         }
                     }
 
-                }
-            }
+
+//            }
             }
         }
 
@@ -439,101 +439,101 @@ val mutex = Mutex()
                 if (!validateOfflineAuthKey(generatedAuthToken!!)) {
                     val exception =
                         SpandanSDKException("${SpandanException.InvalidSessionException.name}: The session is invalid. Please re-initialize the Spandan SDK")
-                    mixPanelHelper.sendToMixpanel(
-                        eventName = TEST_CREATE_FAILED,
-                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                        value = arrayListOf(
-                            masterKey,
-                            getDeviceVariantString(),
-                            ecgTestType.name,
-                            exception.toString()
-                        )
-                    )
+//                    mixPanelHelper.sendToMixpanel(
+//                        eventName = TEST_CREATE_FAILED,
+//                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                        value = arrayListOf(
+//                            masterKey,
+//                            getDeviceVariantString(),
+//                            ecgTestType.name,
+//                            exception.toString()
+//                        )
+//                    )
                     throw exception
                 }
             } else {
                 if (!validateAuthKey(generatedAuthToken!!)) {
                     val exception =
                         SpandanSDKException("${SpandanException.InvalidSessionException.name}: The session is invalid. Please re-initialize the Spandan SDK")
-                    mixPanelHelper.sendToMixpanel(
-                        eventName = TEST_CREATE_FAILED,
-                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                        value = arrayListOf(
-                            masterKey,
-                            getDeviceVariantString(),
-                            ecgTestType.name,
-                            exception.toString()
-                        )
-                    )
+//                    mixPanelHelper.sendToMixpanel(
+//                        eventName = TEST_CREATE_FAILED,
+//                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                        value = arrayListOf(
+//                            masterKey,
+//                            getDeviceVariantString(),
+//                            ecgTestType.name,
+//                            exception.toString()
+//                        )
+//                    )
                     throw exception
                 }
             }
         }
-        mixPanelHelper.sendToMixpanel(
-            eventName = TEST_CREATED,
-            key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
-            value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name)
-        )
+//        mixPanelHelper.sendToMixpanel(
+//            eventName = TEST_CREATED,
+//            key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
+//            value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name)
+//        )
         enabledEcgTests.let {
             if (it != null) {
                 if (!it.contains(EcgTestType.HRV) && ecgTestType == EcgTestType.HRV) {
                     val exception =
                         SpandanSDKException("${SpandanException.InvalidTestException.name}: Not authorised for this test. Please contact Sunfox support.")
-                    mixPanelHelper.sendToMixpanel(
-                        eventName = TEST_CREATE_FAILED,
-                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                        value = arrayListOf(
-                            masterKey,
-                            getDeviceVariantString(),
-                            ecgTestType.name,
-                            exception.toString()
-                        )
-                    )
+//                    mixPanelHelper.sendToMixpanel(
+//                        eventName = TEST_CREATE_FAILED,
+//                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                        value = arrayListOf(
+//                            masterKey,
+//                            getDeviceVariantString(),
+//                            ecgTestType.name,
+//                            exception.toString()
+//                        )
+//                    )
                     throw exception
                 }
                 if (!it.contains(EcgTestType.LEAD_TWO) && ecgTestType == EcgTestType.LEAD_TWO) {
                     val exception =
                         SpandanSDKException("${SpandanException.InvalidTestException.name}: Not authorised for this test. Please contact Sunfox support.")
-                    mixPanelHelper.sendToMixpanel(
-                        eventName = TEST_CREATE_FAILED,
-                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                        value = arrayListOf(
-                            masterKey,
-                            getDeviceVariantString(),
-                            ecgTestType.name,
-                            exception.toString()
-                        )
-                    )
+//                    mixPanelHelper.sendToMixpanel(
+//                        eventName = TEST_CREATE_FAILED,
+//                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                        value = arrayListOf(
+//                            masterKey,
+//                            getDeviceVariantString(),
+//                            ecgTestType.name,
+//                            exception.toString()
+//                        )
+//                    )
                     throw exception
                 }
                 if (!it.contains(EcgTestType.TWELVE_LEAD) && ecgTestType == EcgTestType.TWELVE_LEAD) {
                     val exception =
                         SpandanSDKException("${SpandanException.InvalidTestException.name}: Not authorised for this test. Please contact Sunfox support.")
-                    mixPanelHelper.sendToMixpanel(
-                        eventName = TEST_CREATE_FAILED,
-                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                        value = arrayListOf(
-                            masterKey,
-                            getDeviceVariantString(),
-                            ecgTestType.name,
-                            exception.toString()
-                        )
-                    )
+//                    mixPanelHelper.sendToMixpanel(
+//                        eventName = TEST_CREATE_FAILED,
+//                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                        value = arrayListOf(
+//                            masterKey,
+//                            getDeviceVariantString(),
+//                            ecgTestType.name,
+//                            exception.toString()
+//                        )
+//                    )
                     throw exception
                 }
                 if (!it.contains(EcgTestType.HYPERKALEMIA) && ecgTestType == EcgTestType.HYPERKALEMIA) {
                     val exception =
                         SpandanSDKException("${SpandanException.InvalidTestException.name}: Not authorised for this test. Please contact Sunfox support.")
-                    mixPanelHelper.sendToMixpanel(
-                        eventName = TEST_CREATE_FAILED,
-                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                        value = arrayListOf(
-                            masterKey,
-                            getDeviceVariantString(),
-                            ecgTestType.name,
-                            exception.toString()
-                        )
-                    )
+//                    mixPanelHelper.sendToMixpanel(
+//                        eventName = TEST_CREATE_FAILED,
+//                        key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                        value = arrayListOf(
+//                            masterKey,
+//                            getDeviceVariantString(),
+//                            ecgTestType.name,
+//                            exception.toString()
+//                        )
+//                    )
                     throw exception
                 }
             }
@@ -592,32 +592,32 @@ val mutex = Mutex()
             if (!validateOfflineAuthKey(generatedAuthToken!!)) {
                 val exception =
                     SpandanSDKException("${SpandanException.InvalidSessionException.name}: The session is invalid. Please re-initialize the Spandan SDK")
-                mixPanelHelper.sendToMixpanel(
-                    eventName = Const.GENERATE_REPORT_FAILED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                    value = arrayListOf(
-                        masterKey,
-                        getDeviceVariantString(),
-                        ecgTestType.name,
-                        exception.toString()
-                    )
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = Const.GENERATE_REPORT_FAILED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        getDeviceVariantString(),
+//                        ecgTestType.name,
+//                        exception.toString()
+//                    )
+//                )
                 throw exception
             }
         } else {
             if (!validateAuthKey(generatedAuthToken!!)) {
                 val exception =
                     SpandanSDKException("${SpandanException.InvalidSessionException.name}: The session is invalid. Please re-initialize the Spandan SDK")
-                mixPanelHelper.sendToMixpanel(
-                    eventName = Const.GENERATE_REPORT_FAILED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                    value = arrayListOf(
-                        masterKey,
-                        getDeviceVariantString(),
-                        ecgTestType.name,
-                        exception.toString()
-                    )
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = Const.GENERATE_REPORT_FAILED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        getDeviceVariantString(),
+//                        ecgTestType.name,
+//                        exception.toString()
+//                    )
+//                )
                 throw exception
             }
         }
@@ -627,28 +627,28 @@ val mutex = Mutex()
             throwable.stackTraceToString().forEach {
                 error.append("$it \n")
             }
-            mixPanelHelper.sendToMixpanel(
-                eventName = Const.GENERATE_REPORT_FAILED,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                value = arrayListOf(
-                    masterKey,
-                    getDeviceVariantString(),
-                    ecgTestType.name,
-                    error.toString()
-                )
-            )
+//            mixPanelHelper.sendToMixpanel(
+//                eventName = Const.GENERATE_REPORT_FAILED,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                value = arrayListOf(
+//                    masterKey,
+//                    getDeviceVariantString(),
+//                    ecgTestType.name,
+//                    error.toString()
+//                )
+//            )
             reportGenerationStatusListener.onReportGenerationFailed(
                 ERROR_TEST_NOT_VALID,
                 "$error"
             )
         }
 
-        mixPanelHelper.sendTimingEvent(
-            eventName = GENERATE_REPORT_CALLED,
-            key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
-            value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name),
-            true
-        )
+//        mixPanelHelper.sendTimingEvent(
+//            eventName = GENERATE_REPORT_CALLED,
+//            key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
+//            value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name),
+//            true
+//        )
         CoroutineScope(Dispatchers.IO).launch(exceptionHandler) {
             supervisorScope {
                 val reportGenerationTask = async {
@@ -666,17 +666,17 @@ val mutex = Mutex()
                 reportGenerationTask.await()
                 reportGenerationStatusListener.onReportGenerationSuccess(report)
             }
-            mixPanelHelper.sendTimingEvent(
-                eventName = GENERATE_REPORT_CALLED,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
-                value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name),
-                false
-            )
-            mixPanelHelper.sendToMixpanel(
-                eventName = GENERATE_REPORT_SUCCESS,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
-                value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name)
-            )
+//            mixPanelHelper.sendTimingEvent(
+//                eventName = GENERATE_REPORT_CALLED,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
+//                value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name),
+//                false
+//            )
+//            mixPanelHelper.sendToMixpanel(
+//                eventName = GENERATE_REPORT_SUCCESS,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
+//                value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name)
+//            )
         }
     }
 
@@ -1013,25 +1013,25 @@ val mutex = Mutex()
             if (!validateOfflineAuthKey(generatedAuthToken!!)) {
                 val exception =
                     SpandanSDKException("${SpandanException.InvalidSessionException.name}: The session is invalid. Please re-initialize the Spandan SDK")
-                mixPanelHelper.sendToMixpanel(
-                    eventName = Const.GENERATE_REPORT_FAILED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                    value = arrayListOf(
-                        masterKey,
-                        getDeviceVariantString(),
-                        ecgTestType.name,
-                        exception.toString()
-                    )
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = Const.GENERATE_REPORT_FAILED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        getDeviceVariantString(),
+//                        ecgTestType.name,
+//                        exception.toString()
+//                    )
+//                )
                 throw exception
             }
         } else {
-            mixPanelHelper.sendTimingEvent(
-                eventName = GENERATE_REPORT_CALLED,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
-                value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name),
-                true
-            )
+//            mixPanelHelper.sendTimingEvent(
+//                eventName = GENERATE_REPORT_CALLED,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
+//                value = arrayListOf(masterKey, getDeviceVariantString(), ecgTestType.name),
+//                true
+//            )
 
             CoroutineScope(Dispatchers.IO).launch {
                 val helper = RetrofitHelper()
@@ -1049,21 +1049,21 @@ val mutex = Mutex()
                         pdfReportGenerationCallback.onReportGenerationSuccess(pdfResult)
                     } else {
                         val errorMsg = result.message
-                        mixPanelHelper.sendToMixpanel(
-                            eventName = Const.GENERATE_REPORT_FAILED,
-                            key = arrayListOf(
-                                MASTER_KEY,
-                                CONNECTED_DEVICE_TYPE,
-                                TEST_TYPE,
-                                REASON
-                            ),
-                            value = arrayListOf(
-                                masterKey,
-                                getDeviceVariantString(),
-                                ecgTestType.name,
-                                errorMsg
-                            )
-                        )
+//                        mixPanelHelper.sendToMixpanel(
+//                            eventName = Const.GENERATE_REPORT_FAILED,
+//                            key = arrayListOf(
+//                                MASTER_KEY,
+//                                CONNECTED_DEVICE_TYPE,
+//                                TEST_TYPE,
+//                                REASON
+//                            ),
+//                            value = arrayListOf(
+//                                masterKey,
+//                                getDeviceVariantString(),
+//                                ecgTestType.name,
+//                                errorMsg
+//                            )
+//                        )
                         pdfReportGenerationCallback.onReportGenerationFailed(errorMsg)
                     }
                 } catch (e: Exception) {
@@ -1098,7 +1098,7 @@ val mutex = Mutex()
 //        } catch (e: Exception) {
 //            !data.claims["isOffLine"]!!.asBoolean()!!
 //        }
-        return true;
+        return false;
     }
 
     private fun getListOfTestFromAuth(token: String): List<EcgTestType> {

@@ -52,16 +52,15 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 import com.benasher44.uuid.uuid4
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.cio.Response
+
 
 class EcgTest(
     private val masterKey: String,
     private val ecgTestType: EcgTestType,
     private val ecgTestCallback: EcgTestCallback,
     val deviceInfo: DeviceInfo,
-    private val mixPanelHelper: MixPanelHelper,
-    private val verifierToken:String
+    private val mixPanelHelper: MixPanelHelper?,
+    private val verifierToken:String?
 ) {
 
     private val randomUUID = uuid4().toString()
@@ -98,45 +97,45 @@ class EcgTest(
             val deviceVariant = Utility.mapVariant(deviceInfo.deviceVariant)
             getCommunicator().sendCommand(if (deviceVariant == "spdn") "0" else if (deviceVariant == "spne" || deviceVariant == "sppr") "STP" else if (deviceVariant == "splg") "0" else "")
             if (isTestValid()) {
-                mixPanelHelper.sendToMixpanel(
-                    eventName = POSITION_RECORDING_COMPLETE,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, POSITION),
-                    value = arrayListOf(
-                        masterKey,
-                        deviceInfo.deviceVariant.name,
-                        ecgTestType.name,
-                        currentSelectedEcgPosition.name
-                    )
-                )
-                mixPanelHelper.sendTimingEvent(
-                    eventName = RECORDING_STARTED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE
-//                        , POSITION
-                    ),
-                    value = arrayListOf(
-                        masterKey,
-                        deviceInfo.deviceVariant.name,
-                        ecgTestType.name,
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = POSITION_RECORDING_COMPLETE,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, POSITION),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        deviceInfo.deviceVariant.name,
+//                        ecgTestType.name,
 //                        currentSelectedEcgPosition.name
-                    ),
-                    false
-                )
+//                    )
+//                )
+//                mixPanelHelper.sendTimingEvent(
+//                    eventName = RECORDING_STARTED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE
+////                        , POSITION
+//                    ),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        deviceInfo.deviceVariant.name,
+//                        ecgTestType.name,
+////                        currentSelectedEcgPosition.name
+//                    ),
+//                    false
+//                )
                 ecgTestCallback.onPositionRecordingCompleted(
                     ecgPosition = currentSelectedEcgPosition,
                     ecgPoints = ecgData[currentSelectedEcgPosition]
                 )
             }
             else {
-                mixPanelHelper.sendToMixpanel(
-                    eventName = TEST_FAILED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                    value = arrayListOf(
-                        masterKey,
-                        deviceInfo.deviceVariant.name,
-                        ecgTestType.name,
-                        "ECG data is not valid. Please retake the test."
-                    )
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = TEST_FAILED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        deviceInfo.deviceVariant.name,
+//                        ecgTestType.name,
+//                        "ECG data is not valid. Please retake the test."
+//                    )
+//                )
                 ecgData[currentSelectedEcgPosition]?.clear()
                 ecgTestCallback.onTestFailed(statusCode = ERROR_TEST_NOT_VALID)
             }
@@ -207,88 +206,88 @@ class EcgTest(
         if (isTestInProgress) {
             val exception =
                 SpandanSDKException("${SpandanException.IllegalStateException.name}: Cannot start the test. ${currentSelectedEcgPosition.name} lead already in progress. Please cancel or wait for completion")
-            mixPanelHelper.sendToMixpanel(
-                eventName = TEST_FAILED,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                value = arrayListOf(
-                    masterKey,
-                    deviceInfo.deviceVariant.name,
-                    ecgTestType.name,
-                    exception.toString()
-                )
-            )
+//            mixPanelHelper.sendToMixpanel(
+//                eventName = TEST_FAILED,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                value = arrayListOf(
+//                    masterKey,
+//                    deviceInfo.deviceVariant.name,
+//                    ecgTestType.name,
+//                    exception.toString()
+//                )
+//            )
             throw exception
         }
         this.currentSelectedEcgPosition = ecgPosition
         if ((ecgTestType == EcgTestType.HRV || ecgTestType == EcgTestType.LEAD_TWO) && ecgPosition != EcgPosition.LEAD_2) {
             val exception =
                 SpandanSDKException("${SpandanException.InvalidLeadSelectedException.name}: For $ecgTestType, selected lead must be Lead II")
-            mixPanelHelper.sendToMixpanel(
-                eventName = TEST_FAILED,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                value = arrayListOf(
-                    masterKey,
-                    deviceInfo.deviceVariant.name,
-                    ecgTestType.name,
-                    exception.toString()
-                )
-            )
+//            mixPanelHelper.sendToMixpanel(
+//                eventName = TEST_FAILED,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                value = arrayListOf(
+//                    masterKey,
+//                    deviceInfo.deviceVariant.name,
+//                    ecgTestType.name,
+//                    exception.toString()
+//                )
+//            )
             throw exception
         } else if (ecgTestType == EcgTestType.HYPERKALEMIA && this.currentSelectedEcgPosition == EcgPosition.LEAD_1) {
             val exception =
                 SpandanSDKException("${SpandanException.InvalidLeadSelectedException.name}: For $ecgTestType, selected leads must be any of v1 to v6 and lead II")
-            mixPanelHelper.sendToMixpanel(
-                eventName = TEST_FAILED,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                value = arrayListOf(
-                    masterKey,
-                    deviceInfo.deviceVariant.name,
-                    ecgTestType.name,
-                    exception.toString()
-                )
-            )
+//            mixPanelHelper.sendToMixpanel(
+//                eventName = TEST_FAILED,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                value = arrayListOf(
+//                    masterKey,
+//                    deviceInfo.deviceVariant.name,
+//                    ecgTestType.name,
+//                    exception.toString()
+//                )
+//            )
             throw exception
         } else {
             if (!getCommunicator().getDeviceConnected()) {
                 val exception =
                     SpandanSDKException("${SpandanException.DeviceNotConnectedException.name}: Please connect the Spandan device before starting the test.")
-                mixPanelHelper.sendToMixpanel(
-                    eventName = TEST_FAILED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
-                    value = arrayListOf(
-                        masterKey,
-                        deviceInfo.deviceVariant.name,
-                        ecgTestType.name,
-                        exception.toString()
-                    )
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = TEST_FAILED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, REASON),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        deviceInfo.deviceVariant.name,
+//                        ecgTestType.name,
+//                        exception.toString()
+//                    )
+//                )
                 throw exception
             } else {
-                mixPanelHelper.sendToMixpanel(
-                    eventName = TEST_START_CALLED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE
-//                        , POSITION
-                    ),
-                    value = arrayListOf(
-                        masterKey,
-                        deviceInfo.deviceVariant.name,
-                        ecgTestType.name,
-//                        ecgPosition.name
-                    )
-                )
-                mixPanelHelper.sendTimingEvent(
-                    eventName = RECORDING_STARTED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE
-//                        , POSITION
-                    ),
-                    value = arrayListOf(
-                        masterKey,
-                        deviceInfo.deviceVariant.name,
-                        ecgTestType.name,
-//                        currentSelectedEcgPosition.name
-                    ),
-                    true
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = TEST_START_CALLED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE
+////                        , POSITION
+//                    ),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        deviceInfo.deviceVariant.name,
+//                        ecgTestType.name,
+////                        ecgPosition.name
+//                    )
+//                )
+//                mixPanelHelper.sendTimingEvent(
+//                    eventName = RECORDING_STARTED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE
+////                        , POSITION
+//                    ),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        deviceInfo.deviceVariant.name,
+//                        ecgTestType.name,
+////                        currentSelectedEcgPosition.name
+//                    ),
+//                    true
+//                )
                 getCommunicator().sendCommand(
 
                     when (Utility.mapVariant(deviceInfo.deviceVariant)) {
@@ -306,16 +305,16 @@ class EcgTest(
                 if (ecgTestType != EcgTestType.LIVE_MONITOR)
                     countDownTimer.start()
                 ecgTestCallback.onTestStarted(ecgPosition = currentSelectedEcgPosition)
-                mixPanelHelper.sendToMixpanel(
-                    eventName = TEST_STARTED,
-                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, POSITION),
-                    value = arrayListOf(
-                        masterKey,
-                        deviceInfo.deviceVariant.name,
-                        ecgTestType.name,
-                        ecgPosition.name
-                    )
-                )
+//                mixPanelHelper.sendToMixpanel(
+//                    eventName = TEST_STARTED,
+//                    key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE, POSITION),
+//                    value = arrayListOf(
+//                        masterKey,
+//                        deviceInfo.deviceVariant.name,
+//                        ecgTestType.name,
+//                        ecgPosition.name
+//                    )
+//                )
                 isTestInProgress = true
             }
         }
@@ -365,11 +364,11 @@ class EcgTest(
                 else if (Utility.mapVariant(deviceInfo.deviceVariant) == "spne" || Utility.mapVariant(deviceInfo.deviceVariant) == "sppr") "STP"
                 else "0"
             )
-            mixPanelHelper.sendToMixpanel(
-                eventName = CANCEL_TEST,
-                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
-                value = arrayListOf(masterKey, deviceInfo.deviceVariant.name, ecgTestType.name)
-            )
+//            mixPanelHelper.sendToMixpanel(
+//                eventName = CANCEL_TEST,
+//                key = arrayListOf(MASTER_KEY, CONNECTED_DEVICE_TYPE, TEST_TYPE),
+//                value = arrayListOf(masterKey, deviceInfo.deviceVariant.name, ecgTestType.name)
+//            )
             ecgTestCallback.onTestFailed(statusCode = TEST_CANCELED_BY_USER)
         }
     }

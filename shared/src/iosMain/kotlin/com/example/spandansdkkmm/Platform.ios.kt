@@ -5,11 +5,27 @@ import cocoapods.SericomPod.DeviceErrorState
 import cocoapods.SericomPod.OnConnectionStateChangeListenerProtocol
 import cocoapods.SericomPod.SeriCom
 import com.example.spandansdkkmm.listener.ConnectionStateListener
+import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.UIKit.UIApplication
 import platform.darwin.NSObject
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
+import io.ktor.client.*
+import io.ktor.client.engine.darwin.*
+import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.HttpResponseValidator
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.logging.DEFAULT
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.accept
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 
 class IOSPlatform : Platform {
     override val name: String = "iOS"
@@ -124,3 +140,57 @@ actual fun getCommunicator(): Communicate = IOSCommunicator()
 actual fun setListener():InitializeListener = IOSListener()
 
 actual fun authenticationHelper():AuthenticationHelper = Authentication()
+
+
+actual fun httpClient(config: HttpClientConfig<*>.() -> Unit) = HttpClient(Darwin) {
+    config(this)
+    install(Logging) {
+        logger = Logger.DEFAULT
+        level = LogLevel.BODY
+    }
+    install(ContentNegotiation) {
+
+        json(Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            encodeDefaults = true
+
+        })
+    }
+//            install(JsonFeature) {
+//                serializer = KotlinxSerializer(Json {
+//                    ignoreUnknownKeys = true
+//                    isLenient = true
+//                    allowStructuredMapKeys = true
+//                    prettyPrint = false
+//                    useArrayPolymorphism = false
+//                })
+//            }
+    install(HttpTimeout) {
+//                requestTimeoutMillis = 2 * 60 * 1000 // 2 minutes in milliseconds
+        requestTimeoutMillis = 15000L// 2 minutes in milliseconds
+    }
+
+//            install(KotlinxSerializer) {
+//                val jsonConfig = JsonConfiguration(encodeDefaults = true)
+//                json = Json(jsonConfig)
+//            }
+    defaultRequest {
+        contentType(ContentType.Application.Json)
+        accept(ContentType.Application.Json)
+    }
+    HttpResponseValidator {
+        validateResponse { response ->
+            val statusCode = response.status.value
+            if (statusCode !in 200..299) {
+                throw ClientRequestException(response, response.status.description)
+            }
+        }
+    }
+    engine {
+        configureRequest {
+            setAllowsCellularAccess(true)
+        }
+
+    }
+}
