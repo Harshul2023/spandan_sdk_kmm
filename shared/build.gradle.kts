@@ -97,7 +97,7 @@ kotlin {
             implementation("io.ktor:ktor-client-core:2.3.11")
             implementation("io.ktor:ktor-client-json:2.3.11")
             implementation("io.ktor:ktor-client-serialization:2.3.11")
-
+            implementation("io.ktor:ktor-server-content-negotiation:2.3.11")
 
 
 //            implementation("io.ktor:ktor-client-apache:2.3.11")
@@ -126,6 +126,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-okhttp:2.3.11")
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
                 implementation ("in.sunfox.healthcare.commons.android.sericom:sericom:1.0.8")
+//                implementation("io.ktor:ktor-server-content-negotiation:2.3.11")
             }
         }
         val iosMain by creating {

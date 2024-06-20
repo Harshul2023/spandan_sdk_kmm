@@ -25,7 +25,7 @@ class RetrofitHelper {
 
     @OptIn(InternalAPI::class)
     fun getRetrofitInstance(): GenerateAuthTokenAPI {
-      val client = httpClient()
+        val client = httpClient()
 //        val client = HttpClient(CIO) {
 //            install(Logging) {
 //                logger = Logger.DEFAULT
@@ -72,6 +72,53 @@ class RetrofitHelper {
 //            }
 //        }
         return object : GenerateAuthTokenAPI {
+            //            override suspend fun pushEcgTestLog(
+//                authorization: String?,
+//                apiKey: String,
+//                ecgTestLogData: EcgTestLogData
+//            ): EcgTestLogResponse {
+//                var response: HttpResponse? =null
+//                try {
+//                    response =
+//                        client.post("https://api.sunfox.in/spandan-sdk/dev/v1/test-logs") {
+//                            header("Authorization", authorization)
+//                            header("api-key", apiKey)
+//                            body = ecgTestLogData
+//                        }
+//                }catch (e:Exception)
+//                {
+//                    e.stackTraceToString();
+//                }
+//
+//                val resultJson = response!!.body<EcgTestLogResponse>()
+//                return resultJson
+//
+//            }
+            override suspend fun pushEcgTestLog(
+                authorization: String?,
+                apiKey: String,
+                ecgTestLogData: EcgTestLogData
+            ): EcgTestLogResponse {
+                return try {
+                    val response =
+                        client.post("https://api.sunfox.in/spandan-sdk/dev/v1/test-logs") {
+                            setBody(body=ecgTestLogData)
+                            header("Authorization", authorization)
+                            header("api-key", apiKey)
+                            contentType(ContentType.Application.Json)
+//                            body = ecgTestLogData
+                        }
+                    if (response.status.isSuccess()) {
+                        response.body<EcgTestLogResponse>()
+                    } else {
+                        throw IOException("Failed to fetch token: ${response.status}")
+                    }
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    throw IOException("Failed to fetch token: ${e.message}")
+                }
+
+            }
 
             override suspend fun getAuthToken(
                 authorization: String,
@@ -79,11 +126,12 @@ class RetrofitHelper {
                 apiKey: String
             ): GenerateAuthTokenResult {
                 return try {
-                    val response = client.get("https://api.sunfox.in/spandan-sdk/dev/v1/auth/generate-token") {
-                        header("Authorization", authorization)
-                        header("sess-id", sessionId)
-                        header("api-key", apiKey)
-                    }
+                    val response =
+                        client.get("https://api.sunfox.in/spandan-sdk/dev/v1/auth/generate-token") {
+                            header("Authorization", authorization)
+                            header("sess-id", sessionId)
+                            header("api-key", apiKey)
+                        }
                     if (response.status.isSuccess()) {
                         response.body<GenerateAuthTokenResult>()
                     } else {
@@ -95,28 +143,7 @@ class RetrofitHelper {
                 }
             }
 
-//            override suspend fun getAuthToken(
-//                authorization: String,
-//                sessionId: String,
-//                apiKey: String
-//            ): GenerateAuthTokenResult {
-//                var response: HttpResponse? =null
-//                try {
-//                 response =
-//                        client.get("https://api.sunfox.in/spandan-sdk/dev/v1/auth/generate-token") {
-//                            header("Authorization", authorization)
-//                            header("sess-id", sessionId)
-//                            header("api-key", apiKey)
-//                        }
-//                }catch (e:Exception)
-//                {
-//                    e.printStackTrace()
-//                }
-//                val resultJson = response!!.body<GenerateAuthTokenResult>()
-//                return resultJson
-//            }
-
-            override  suspend fun generatePdfReport(
+            override suspend fun generatePdfReport(
                 authorization: String?,
                 apiKey: String,
                 generatePdfReportInputData: GeneratePdfReportInputData
@@ -131,28 +158,7 @@ class RetrofitHelper {
 
             }
 
-            override suspend fun pushEcgTestLog(
-                authorization: String?,
-                apiKey: String,
-                ecgTestLogData: EcgTestLogData
-            ): EcgTestLogResponse {
-                var response: HttpResponse? =null
-                try {
-                    response =
-                        client.post("https://api.sunfox.in/spandan-sdk/dev/v1/test-logs") {
-                            header("Authorization", authorization)
-                            header("api-key", apiKey)
-                            body = ecgTestLogData
-                        }
-                }catch (e:Exception)
-                {
-                    e.stackTraceToString();
-                }
 
-                    val resultJson = response!!.body<EcgTestLogResponse>()
-                    return resultJson
-
-            }
         }
     }
 

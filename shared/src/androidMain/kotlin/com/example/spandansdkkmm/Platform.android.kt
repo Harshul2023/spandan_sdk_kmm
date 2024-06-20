@@ -18,16 +18,20 @@ import javax.crypto.spec.SecretKeySpec
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.DEFAULT
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.accept
+import io.ktor.client.request.header
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -159,27 +163,14 @@ actual fun httpClient(config: HttpClientConfig<*>.() -> Unit) = HttpClient(OkHtt
 
         })
     }
-//            install(JsonFeature) {
-//                serializer = KotlinxSerializer(Json {
-//                    ignoreUnknownKeys = true
-//                    isLenient = true
-//                    allowStructuredMapKeys = true
-//                    prettyPrint = false
-//                    useArrayPolymorphism = false
-//                })
-//            }
+
     install(HttpTimeout) {
 //                requestTimeoutMillis = 2 * 60 * 1000 // 2 minutes in milliseconds
         requestTimeoutMillis = 15000L// 2 minutes in milliseconds
     }
 
-//            install(KotlinxSerializer) {
-//                val jsonConfig = JsonConfiguration(encodeDefaults = true)
-//                json = Json(jsonConfig)
-//            }
-    defaultRequest {
-        contentType(ContentType.Application.Json)
-        accept(ContentType.Application.Json)
+    install(DefaultRequest) {
+        header(HttpHeaders.ContentType, ContentType.Application.Json)
     }
     HttpResponseValidator {
         validateResponse { response ->
