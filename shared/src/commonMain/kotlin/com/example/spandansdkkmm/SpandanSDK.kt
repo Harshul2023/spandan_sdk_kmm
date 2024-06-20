@@ -58,6 +58,10 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import okio.ByteString.Companion.decodeBase64
 import okio.ByteString.Companion.encodeUtf8
 import kotlin.concurrent.Volatile
@@ -139,7 +143,7 @@ class SpandanSDK private constructor() {
                                 createdAt = createdAt,
                                 masterKey = masterKey
                             )
-                        if (INSTANCE!!.validateOfflineAuthKey(token)) INSTANCE!!.bind(application)
+                        if (INSTANCE!!.validateOfflineAuthKey(generatedAuthToken!!)) INSTANCE!!.bind(application)
                         else throw SpandanSDKException("${SpandanException.SDKNotInitialisedException.name}: Could not initialise Spandan SDK. The token is invalid. Please check the token and try again.")
                     }
 //                }
@@ -1080,70 +1084,80 @@ class SpandanSDK private constructor() {
 
 
     private fun isTokenExpired(token: String, sessionId: String?): Boolean {
-//        val data = JWT(authenticationHelper.decrypt(token))
-//        return !(data.claims["sid"]!!.asString().equals(sessionId, false))
-        return false
+        val data = JwtDecoder.decode(authenticationHelper.decrypt(token))
+        val expClaim = data["exp"]?.jsonPrimitive?.longOrNull
+        return expClaim != null && expClaim < Clock.System.now().toEpochMilliseconds() / 1000
     }
 
     private fun isOfflineTokenExpired(token: String): Boolean {
-//        val data = JWT(authenticationHelper.decrypt(token))
-//        return try {
-//            if (data.claims["exp"] != null) {
-//                //for old token expiry check
-//                (data.claims["exp"]!!.asLong()!! < (Clock.System.now().toEpochMilliseconds()))
-//            } else {
-//                //for new token expiry check
-//                !data.claims["isOffLine"]!!.asBoolean()!!
-//            }
-//        } catch (e: Exception) {
-//            !data.claims["isOffLine"]!!.asBoolean()!!
-//        }
-        return false;
+        val decoded = "decoded"+authenticationHelper.decrypt(token)
+        print(authenticationHelper.decrypt(token))
+        val data = JwtDecoder.decode(decoded)
+        return try {
+            val expClaim = data["exp"]?.jsonPrimitive?.longOrNull
+            val isOfflineClaim = data["isOffLine"]?.jsonPrimitive?.booleanOrNull
+
+            if (expClaim != null) {
+                // For old token expiry check
+                expClaim < Clock.System.now().toEpochMilliseconds() / 1000 // JWT exp is usually in seconds
+            } else {
+                // For new token expiry check
+                isOfflineClaim?.not() ?: true
+            }
+        } catch (e: Exception) {
+            data["isOffLine"]?.jsonPrimitive?.booleanOrNull?.not() ?: true
+        }
     }
 
     private fun getListOfTestFromAuth(token: String): List<EcgTestType> {
-//        val data = JWT(authenticationHelper.decrypt(token))
+        val data = JwtDecoder.decode(authenticationHelper.decrypt(token))
         val ecgTestTypeList = arrayListOf<EcgTestType>()
-//        (data.claims["ta"])!!.asString()!!.split(Regex(",")).forEach {
-//            if (it.contains(EcgTestType.LEAD_TWO.name))
-                ecgTestTypeList.add(EcgTestType.LEAD_TWO)
-//            else if (it.contains(EcgTestType.TWELVE_LEAD.name))
-                ecgTestTypeList.add(EcgTestType.TWELVE_LEAD)
-//            else if (it.contains(EcgTestType.HYPERKALEMIA.name))
-                ecgTestTypeList.add(EcgTestType.HYPERKALEMIA)
-//            else
-                ecgTestTypeList.add(EcgTestType.HRV)
-//        }
+
+        val taClaim = data["ta"]
+        val taString = taClaim?.jsonPrimitive?.contentOrNull
+        taString?.split(",")?.forEach {
+            when {
+                it.contains(EcgTestType.LEAD_TWO.name) -> ecgTestTypeList.add(EcgTestType.LEAD_TWO)
+                it.contains(EcgTestType.TWELVE_LEAD.name) -> ecgTestTypeList.add(EcgTestType.TWELVE_LEAD)
+                it.contains(EcgTestType.HYPERKALEMIA.name) -> ecgTestTypeList.add(EcgTestType.HYPERKALEMIA)
+                else -> ecgTestTypeList.add(EcgTestType.HRV)
+            }
+        }
+
         return ecgTestTypeList
     }
 
+
+
+
+
     private fun getEnabledDeviceTypeFromAuth(token: String): List<SpandanDeviceVariant> {
-//        val data = JWT(authenticationHelper.decrypt(token))
+        val data = JwtDecoder.decode(authenticationHelper.decrypt(token))
         val deviceVariantList = arrayListOf<SpandanDeviceVariant>()
-//        (data.claims["de"])!!.asString()!!.split(Regex(",")).forEach {
-//            if (it.contains(SpandanDeviceVariant.SPANDAN_NEO.name))
-                deviceVariantList.add(SpandanDeviceVariant.SPANDAN_NEO)
-//            else if (it.contains(SpandanDeviceVariant.SPANDAN_PRO.name))
-                deviceVariantList.add(SpandanDeviceVariant.SPANDAN_PRO)
-//            else
-                deviceVariantList.add(SpandanDeviceVariant.SPANDAN_LEGACY)
-//        }
-        return deviceVariantList//for checking enabled device type(Neo, Pro or Legacy) from device
+
+        val deClaim = data["de"]
+        val deString = deClaim?.jsonPrimitive?.contentOrNull
+        deString?.split(",")?.forEach {
+            when {
+                it.contains(SpandanDeviceVariant.SPANDAN_NEO.name) -> deviceVariantList.add(SpandanDeviceVariant.SPANDAN_NEO)
+                it.contains(SpandanDeviceVariant.SPANDAN_PRO.name) -> deviceVariantList.add(SpandanDeviceVariant.SPANDAN_PRO)
+                else -> deviceVariantList.add(SpandanDeviceVariant.SPANDAN_LEGACY)
+            }
+        }
+
+        return deviceVariantList
     }
+
 
 
 
     private fun isGenerateReport(token: String): Boolean {
-        //this method is called to check if the client have access to the generate the report.
-//        val data = JWT(authenticationHelper.decrypt(token))
-//        return data.claims["eG"].let {
-//            if (it != null)
-//                it.asBoolean()!!
-//            else
-//                false
-//        }
-        return true
+        // This method is called to check if the client has access to generate the report.
+        val data = JwtDecoder.decode(authenticationHelper.decrypt(token))
+        return data["eG"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
     }
+
+
 
     private fun createSessionId(): String {
         val allowedCharacters = "0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"

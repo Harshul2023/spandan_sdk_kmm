@@ -1,6 +1,7 @@
 
 package com.example.spandansdkkmm
 
+import AuthenticationHelperIOS
 import cocoapods.SericomPod.DeviceErrorState
 import cocoapods.SericomPod.OnConnectionStateChangeListenerProtocol
 import cocoapods.SericomPod.SeriCom
@@ -10,7 +11,6 @@ import io.ktor.client.HttpClientConfig
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.UIKit.UIApplication
 import platform.darwin.NSObject
-import io.ktor.client.*
 import io.ktor.client.engine.darwin.*
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.HttpResponseValidator
@@ -78,18 +78,6 @@ class IOSListener:InitializeListener{
     }
 
 }
-//fun hexToString(hex: String): String {
-//    val bytes = mutableListOf<Byte>()
-//    for (i in hex.indices step 2) {
-//        val byteString = hex.substring(i, i + 2)
-//        val byte = byteString.toInt(16).toByte()
-//        bytes.add(byte)
-//    }
-//    return bytes.toByteArray().decodeToString()
-//}
-
-
-
 class IOSInitializer : Initializer {
     @OptIn(ExperimentalForeignApi::class)
     override fun initialize(context: Any) {
@@ -115,16 +103,15 @@ class IOSCommunicator : Communicate {
 
     }
 }
-class Authentication: AuthenticationHelper {
+class Authentication : AuthenticationHelper {
+    private val helper = AuthenticationHelperIOS()
 
-    @OptIn(ExperimentalForeignApi::class)
     override fun decrypt(strToDecrypt: String?, key: String, iv: String): String {
-          return SeriCom.decryptWithStrToDecrypt(strToDecrypt,key,iv)
-        }
+        return helper.decrypt(strToDecrypt,key,iv)
+    }
 
-    @OptIn(ExperimentalForeignApi::class)
-    override fun init(stringToHash: String): String {
-     return  SeriCom.initializeAuthenticationWithStringToHash(stringToHash)
+    override fun init(stringToHash: String):String {
+        return helper.init(stringToHash)
     }
 }
 
@@ -157,24 +144,9 @@ actual fun httpClient(config: HttpClientConfig<*>.() -> Unit) = HttpClient(Darwi
 
         })
     }
-//            install(JsonFeature) {
-//                serializer = KotlinxSerializer(Json {
-//                    ignoreUnknownKeys = true
-//                    isLenient = true
-//                    allowStructuredMapKeys = true
-//                    prettyPrint = false
-//                    useArrayPolymorphism = false
-//                })
-//            }
     install(HttpTimeout) {
-//                requestTimeoutMillis = 2 * 60 * 1000 // 2 minutes in milliseconds
         requestTimeoutMillis = 15000L// 2 minutes in milliseconds
     }
-
-//            install(KotlinxSerializer) {
-//                val jsonConfig = JsonConfiguration(encodeDefaults = true)
-//                json = Json(jsonConfig)
-//            }
     defaultRequest {
         contentType(ContentType.Application.Json)
         accept(ContentType.Application.Json)
@@ -194,3 +166,5 @@ actual fun httpClient(config: HttpClientConfig<*>.() -> Unit) = HttpClient(Darwi
 
     }
 }
+
+

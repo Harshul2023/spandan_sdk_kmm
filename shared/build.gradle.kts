@@ -78,7 +78,7 @@ kotlin {
             if (localPropertiesFile.exists()) { properties.load(FileInputStream(localPropertiesFile)) }
 
             source = git("https://username:"+properties.getProperty("cocoapod.token","")+"@github.com/sunfox-technologies/sericomm_ios.git/") {
-                branch = "authentication"
+                branch = "dddd"
             }
 
             extraOpts += listOf("-compiler-option", "-fmodules")
@@ -93,20 +93,14 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
             implementation("com.benasher44:uuid:0.8.4")
-//
             implementation("io.ktor:ktor-client-core:2.3.11")
             implementation("io.ktor:ktor-client-json:2.3.11")
             implementation("io.ktor:ktor-client-serialization:2.3.11")
             implementation("io.ktor:ktor-server-content-negotiation:2.3.11")
 
 
-//            implementation("io.ktor:ktor-client-apache:2.3.11")
-
-
             implementation("io.ktor:ktor-client-content-negotiation:2.3.11")
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11")
-//            implementation("io.ktor:ktor-client-cio:2.3.11")
-
             implementation("io.ktor:ktor-client-logging:2.3.11")
             implementation("com.squareup.okio:okio:3.9.0")
 
@@ -126,7 +120,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-okhttp:2.3.11")
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
                 implementation ("in.sunfox.healthcare.commons.android.sericom:sericom:1.0.8")
-//                implementation("io.ktor:ktor-server-content-negotiation:2.3.11")
+
             }
         }
         val iosMain by creating {

@@ -2,7 +2,6 @@
 package com.example.spandansdkkmm
 
 import android.app.Application
-import android.util.Base64
 import android.util.Log
 import com.example.spandansdkkmm.listener.ConnectionStateListener
 import `in`.sunfox.healthcare.commons.android.sericom.SeriCom
@@ -10,12 +9,7 @@ import `in`.sunfox.healthcare.commons.android.sericom.interfaces.OnConnectionSta
 import `in`.sunfox.healthcare.commons.android.sericom.utils.DeviceErrorState
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
-import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
-import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
-import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.DefaultRequest
@@ -23,16 +17,13 @@ import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.DEFAULT
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.accept
 import io.ktor.client.request.header
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -117,29 +108,18 @@ class AndroidCommunicator : Communicate {
         TODO("Not yet implemented")
     }
 }
-class Authentication : AuthenticationHelper{
+class Authentication : AuthenticationHelper {
+    private val helper = AuthenticationHelperANDROID()
+
     override fun decrypt(strToDecrypt: String?, key: String, iv: String): String {
-                val secretKey = SecretKeySpec(key.toByteArray(), "AES")
-        val ivData = IvParameterSpec(iv.toByteArray())
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivData)
-        val decodedBytes = Base64.decode(strToDecrypt, Base64.URL_SAFE)
-        val decrypted = cipher.doFinal(decodedBytes)
-        return String(decrypted)
+        return helper.decrypt(strToDecrypt,key,iv)
     }
 
-    override fun init(stringToHash:String): String {
-        val decryptionKey=
-            MessageDigest.getInstance("SHA-256")
-                .digest(stringToHash.toByteArray()).joinToString("")
-                {
-                    "%02x".format(it)
-                }
-                .substring(0, 32)
-        return  decryptionKey
+    override fun init(stringToHash: String):String {
+        return helper.init(stringToHash)
     }
-
 }
+
 actual fun authenticationHelper():AuthenticationHelper = Authentication()
 
 actual fun getPlatform(): Platform = AndroidPlatform()
