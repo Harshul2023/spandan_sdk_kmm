@@ -78,7 +78,7 @@ kotlin {
             if (localPropertiesFile.exists()) { properties.load(FileInputStream(localPropertiesFile)) }
 
             source = git("https://username:"+properties.getProperty("cocoapod.token","")+"@github.com/sunfox-technologies/sericomm_ios.git/") {
-                branch = "dddd"
+                branch = "encryption"
             }
 
             extraOpts += listOf("-compiler-option", "-fmodules")

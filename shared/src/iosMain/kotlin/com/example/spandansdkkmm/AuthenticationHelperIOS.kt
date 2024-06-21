@@ -7,28 +7,28 @@ import platform.Foundation.*
 import platform.posix.size_t
 import platform.posix.size_tVar
 
+
 class AuthenticationHelperIOS {
     private val TAG = "Authentication.TAG"
     private var decryptionKey = ""
     private var iv = ""
 
     fun init(stringToHash: String): String {
+
         decryptionKey = sha256(stringToHash).substring(0, 32)
         decryptionKey = "0cff84f3008c61285fa602dc6e154eac"
         println("Decryption Key: $decryptionKey")
         return decryptionKey
     }
 
-    fun decrypt(strToDecrypt: String?, key: String, iv: String): String {
-        return privateDecrypt(strToDecrypt!!, key, iv)
-    }
-
-
     @OptIn(ExperimentalForeignApi::class)
-    private fun privateDecrypt(strToDecrypt: String?, key: String, iv: String): String {
-       val ss= SeriCom.hey()
-        print(ss)
-        return ss!!
+    public fun decrypt(strToDecrypt: String?, key: String, iv: String): String {
+
+        print(strToDecrypt)
+//        val s = SeriCom.decryptAESWithKeyStr(keyStr = key, ivStr = iv,str = strToDecrypt!!)
+        val s = SeriCom.decryptWithKey(key,iv, strToDecrypt.toString())
+        print(s)
+        return s!!
     }
 
     @OptIn(ExperimentalForeignApi::class)
