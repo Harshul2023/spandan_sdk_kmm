@@ -18,7 +18,7 @@ import javax.crypto.spec.SecretKeySpec
                     "%02x".format(it)
                 }
                 .substring(0, 32)
-        decryptionKey = "0cff84f3008c61285fa602dc6e154eac"
+//        decryptionKey = "0cff84f3008c61285fa602dc6e154eac"
         return decryptionKey
     }
 
@@ -27,12 +27,18 @@ import javax.crypto.spec.SecretKeySpec
     }
 
     private fun privateDecrypt(strToDecrypt: String?, key: String, iv: String): String {
+
         val secretKey = SecretKeySpec(key.toByteArray(), "AES")
         val ivData = IvParameterSpec(iv.toByteArray())
+
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+
         cipher.init(Cipher.DECRYPT_MODE, secretKey, ivData)
+
         val decodedBytes = Base64.decode(strToDecrypt, Base64.URL_SAFE)
+        Log.d("Authentication",decodedBytes.size.toString())
         val decrypted = cipher.doFinal(decodedBytes)
+        val str = String(decrypted)
         return String(decrypted)
     }
 }

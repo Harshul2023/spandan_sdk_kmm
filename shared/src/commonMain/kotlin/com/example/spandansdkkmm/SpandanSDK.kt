@@ -134,8 +134,8 @@ class SpandanSDK private constructor() {
                         INSTANCE!!.bind(application)
                         val w = decodeBase64ToString(token)
                         val id = w.substring(0, 64)
-                        val createdAt = w.substring(65, 78)
-                        val masterKey = w.substring(79, 95)
+                        val createdAt = w.substring(64, 77)
+                        val masterKey = w.substring(77, 93)
                         generatedAuthToken = w.substring(93, w.length)
                         INSTANCE!!.authenticationHelper =
                             AuthenticationHelper(
