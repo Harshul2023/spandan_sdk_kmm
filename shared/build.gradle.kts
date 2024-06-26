@@ -24,7 +24,11 @@ project.afterEvaluate {
         }
     }
 }
-
+kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+    binaries.all {
+        freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
+    }
+}
 repositories {
 
     // Load properties from a file
@@ -97,8 +101,7 @@ kotlin {
             implementation("io.ktor:ktor-client-json:2.3.11")
             implementation("io.ktor:ktor-client-serialization:2.3.11")
             implementation("io.ktor:ktor-server-content-negotiation:2.3.11")
-
-
+            implementation("de.peilicke.sascha:kase64:1.2.0")
             implementation("io.ktor:ktor-client-content-negotiation:2.3.11")
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11")
             implementation("io.ktor:ktor-client-logging:2.3.11")

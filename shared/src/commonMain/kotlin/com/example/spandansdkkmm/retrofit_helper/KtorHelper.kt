@@ -26,74 +26,8 @@ class RetrofitHelper {
     @OptIn(InternalAPI::class)
     fun getRetrofitInstance(): GenerateAuthTokenAPI {
         val client = httpClient()
-//        val client = HttpClient(CIO) {
-//            install(Logging) {
-//                logger = Logger.DEFAULT
-//                level = LogLevel.BODY
-//            }
-//            install(ContentNegotiation) {
-//
-//                json(Json {
-//                    ignoreUnknownKeys = true
-//                    isLenient = true
-//                    encodeDefaults = true
-//
-//                })
-//            }
-////            install(JsonFeature) {
-////                serializer = KotlinxSerializer(Json {
-////                    ignoreUnknownKeys = true
-////                    isLenient = true
-////                    allowStructuredMapKeys = true
-////                    prettyPrint = false
-////                    useArrayPolymorphism = false
-////                })
-////            }
-//            install(HttpTimeout) {
-////                requestTimeoutMillis = 2 * 60 * 1000 // 2 minutes in milliseconds
-//                requestTimeoutMillis = 15000L// 2 minutes in milliseconds
-//            }
-//
-////            install(KotlinxSerializer) {
-////                val jsonConfig = JsonConfiguration(encodeDefaults = true)
-////                json = Json(jsonConfig)
-////            }
-//            defaultRequest {
-//                contentType(ContentType.Application.Json)
-//                accept(ContentType.Application.Json)
-//            }
-//            HttpResponseValidator {
-//                validateResponse { response ->
-//                    val statusCode = response.status.value
-//                    if (statusCode !in 200..299) {
-//                        throw ClientRequestException(response, response.status.description)
-//                    }
-//                }
-//            }
-//        }
+
         return object : GenerateAuthTokenAPI {
-            //            override suspend fun pushEcgTestLog(
-//                authorization: String?,
-//                apiKey: String,
-//                ecgTestLogData: EcgTestLogData
-//            ): EcgTestLogResponse {
-//                var response: HttpResponse? =null
-//                try {
-//                    response =
-//                        client.post("https://api.sunfox.in/spandan-sdk/dev/v1/test-logs") {
-//                            header("Authorization", authorization)
-//                            header("api-key", apiKey)
-//                            body = ecgTestLogData
-//                        }
-//                }catch (e:Exception)
-//                {
-//                    e.stackTraceToString();
-//                }
-//
-//                val resultJson = response!!.body<EcgTestLogResponse>()
-//                return resultJson
-//
-//            }
             override suspend fun pushEcgTestLog(
                 authorization: String?,
                 apiKey: String,
@@ -105,8 +39,7 @@ class RetrofitHelper {
                             setBody(body=ecgTestLogData)
                             header("Authorization", authorization)
                             header("api-key", apiKey)
-                            contentType(ContentType.Application.Json)
-//                            body = ecgTestLogData
+                            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                         }
                     if (response.status.isSuccess()) {
                         response.body<EcgTestLogResponse>()
@@ -148,16 +81,25 @@ class RetrofitHelper {
                 apiKey: String,
                 generatePdfReportInputData: GeneratePdfReportInputData
             ): GeneratePdfReportResult {
-                val response = client.post("https://api.sunfox.in/ecg-processor/dev/v3/process") {
-                    header("Authorization", authorization)
-                    header("api-key", apiKey)
-                    body = generatePdfReportInputData
+                return try {
+                    val response =
+                        client.post("https://api.sunfox.in/ecg-processor/dev/v3/process") {
+                            header("Authorization", authorization)
+                            header("api-key", apiKey)
+                            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                            setBody(generatePdfReportInputData)
+                        }
+                    if (response.status.isSuccess()) {
+                        response.body<GeneratePdfReportResult>()
+                    } else {
+                        throw IOException("Failed to fetch report: ${response.status}")
+                    }
                 }
-                val resultJson = response.body<GeneratePdfReportResult>()
-                return resultJson
-
+                 catch (e: Throwable) {
+                e.printStackTrace()
+                throw IOException("Failed to fetch report: ${e.message}")
             }
-
+            }
 
         }
     }

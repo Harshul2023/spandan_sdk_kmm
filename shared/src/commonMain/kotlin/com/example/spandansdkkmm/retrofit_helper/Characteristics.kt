@@ -1,5 +1,8 @@
 package com.example.spandansdkkmm.retrofit_helper
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Characteristics(
     val heartRate: Int,
     val pr: Int,

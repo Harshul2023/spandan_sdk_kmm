@@ -8,21 +8,7 @@ import MixPanelHelper
 import OnReportGenerationStateListener
 import PDFReportGenerationCallback
 import RetrofitHelper
-import com.example.spandansdkkmm.Const.CONNECTED_DEVICE_TYPE
-import com.example.spandansdkkmm.Const.DEVICE_CONNECTED
-import com.example.spandansdkkmm.Const.DEVICE_CONNECTION_TIMEOUT
-import com.example.spandansdkkmm.Const.DEVICE_DISCONNECTED
-import com.example.spandansdkkmm.Const.DEVICE_VERIFIED
 import com.example.spandansdkkmm.Const.ERROR_TEST_NOT_VALID
-import com.example.spandansdkkmm.Const.GENERATE_REPORT_CALLED
-import com.example.spandansdkkmm.Const.GENERATE_REPORT_SUCCESS
-import com.example.spandansdkkmm.Const.MASTER_KEY
-import com.example.spandansdkkmm.Const.REASON
-import com.example.spandansdkkmm.Const.SDK_INITIALISE_COMPLETE
-import com.example.spandansdkkmm.Const.SDK_INITIALISE_FAILED
-import com.example.spandansdkkmm.Const.TEST_CREATED
-import com.example.spandansdkkmm.Const.TEST_CREATE_FAILED
-import com.example.spandansdkkmm.Const.TEST_TYPE
 import com.example.spandansdkkmm.collection.EcgTestCallback
 import com.example.spandansdkkmm.conclusion.EcgReport
 import com.example.spandansdkkmm.connection.OnDeviceConnectionStateChangeListener
@@ -32,16 +18,12 @@ import com.example.spandansdkkmm.enums.EcgPosition
 import com.example.spandansdkkmm.enums.EcgTestType
 import com.example.spandansdkkmm.enums.SpandanDeviceVariant
 import com.example.spandansdkkmm.listener.ConnectionStateListener
-import com.example.spandansdkkmm.model.ErrorResponse
 import com.example.spandansdkkmm.retrofit_helper.ApiEcgData
-import com.example.spandansdkkmm.retrofit_helper.GenerateAuthTokenResult
 import com.example.spandansdkkmm.retrofit_helper.GeneratePdfReportInputData
 import com.example.spandansdkkmm.retrofit_helper.MetaData
 import com.example.spandansdkkmm.retrofit_helper.PatientData
-import com.example.spandansdkkmm.retrofit_helper.ReportGenerationResult
 import com.example.spandansdkkmm.util.Utility
 import io.ktor.util.encodeBase64
-import io.ktor.utils.io.charsets.Charsets
 import io.ktor.utils.io.core.toByteArray
 import io.ktor.utils.io.errors.IOException
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -49,14 +31,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.internal.synchronized
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -69,6 +47,7 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.jvm.JvmStatic
 import kotlin.random.Random
+import saschpe.kase64.*
 
 
 class SpandanSDK private constructor() {
@@ -712,8 +691,6 @@ class SpandanSDK private constructor() {
     }
 
     private fun populateDeviceInfo(data: String) {
-//        onDeviceConnectionStateChangeListener?.onDeviceConnected(DeviceInfo(SpandanDeviceVariant.SPANDAN_LEGACY,null,null,null)
-//        )
         if (deviceInfo == null) {
             deviceInfo = DeviceInfo()
         }
@@ -903,40 +880,40 @@ class SpandanSDK private constructor() {
 //                    Base64.encode(
 //                        ecgTest._ecgData[EcgPosition.V1].toString().toByteArray(Charsets.UTF_8), Base64.Default
 //                    ),
-                    v1Data = encodeToBase64(ecgTest._ecgData[EcgPosition.V1].toString()),
+                    v1Data = encodeToBase64(ecgTest._ecgData[EcgPosition.V1]),
 
                     v2Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V2].toString()),
+                        ecgTest._ecgData[EcgPosition.V2]),
 
                     v3Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V3].toString()
+                        ecgTest._ecgData[EcgPosition.V3]
                     ),
 
                     v4Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V4].toString()
+                        ecgTest._ecgData[EcgPosition.V4]
                     ),
 
                     v5Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V5].toString()
+                        ecgTest._ecgData[EcgPosition.V5]
                     ),
 
                     v6Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V6].toString()
+                        ecgTest._ecgData[EcgPosition.V6]
                     ),
 
                     lead1Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.LEAD_1].toString()
+                        ecgTest._ecgData[EcgPosition.LEAD_1]
                     ),
 
                     lead2Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.LEAD_2].toString()
+                        ecgTest._ecgData[EcgPosition.LEAD_2]
                     )
                 )
 
@@ -948,7 +925,7 @@ class SpandanSDK private constructor() {
                 apiEcgData = ApiEcgData(
                     lead2Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.LEAD_2].toString()
+                        ecgTest._ecgData[EcgPosition.LEAD_2]
                     )
                 )
             }
@@ -958,37 +935,37 @@ class SpandanSDK private constructor() {
                 apiEcgData = ApiEcgData(
                     v1Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V1].toString()
+                        ecgTest._ecgData[EcgPosition.V1]
                     ),
 
                     v2Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V2].toString()
+                        ecgTest._ecgData[EcgPosition.V2]
                     ),
 
                     v3Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V3].toString()
+                        ecgTest._ecgData[EcgPosition.V3]
                     ),
 
                     v4Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V4].toString()
+                        ecgTest._ecgData[EcgPosition.V4]
                     ),
 
                     v5Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V5].toString()
+                        ecgTest._ecgData[EcgPosition.V5]
                     ),
 
                     v6Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.V6].toString()
+                        ecgTest._ecgData[EcgPosition.V6]
                     ),
 
                     lead2Data =
                     encodeToBase64(
-                        ecgTest._ecgData[EcgPosition.LEAD_2].toString()
+                        ecgTest._ecgData[EcgPosition.LEAD_2]
                     )
 
                 )
@@ -1168,8 +1145,14 @@ class SpandanSDK private constructor() {
             sessionId.append(allowedCharacters[Random.nextInt(allowedCharacters.length)])
         return sessionId.toString()
     }
-    fun encodeToBase64(input: String): String {
-//        return input.encodeUtf8().encodeBase64().utf8()
-        return input.encodeUtf8().base64().encodeBase64()
+
+    fun encodeToBase64(input: ArrayList<Double>?): String {
+
+        val joinedValues = input!!.joinToString(separator = ", ")
+
+        val encoded = joinedValues.base64UrlEncoded // "Hello, world!"
+
+
+        return encoded
     }
 }
