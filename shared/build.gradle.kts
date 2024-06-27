@@ -8,6 +8,7 @@ plugins {
     id("maven-publish")
     id ("kotlinx-serialization")
 
+
 }
 project.afterEvaluate {
     publishing {
@@ -92,7 +93,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation("com.example.ecg_processor_kmm:ecg_processor_kmm:1.0.1")
-
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
@@ -106,13 +106,11 @@ kotlin {
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11")
             implementation("io.ktor:ktor-client-logging:2.3.11")
             implementation("com.squareup.okio:okio:3.9.0")
-
             val core = "0.5.1"
             implementation("org.kotlincrypto.core:digest:$core")
             implementation("org.kotlincrypto.core:mac:$core")
             implementation("org.kotlincrypto.core:xof:$core")
             implementation("com.squareup.okio:okio:3.0.0")
-
 
         }
         commonTest.dependencies {

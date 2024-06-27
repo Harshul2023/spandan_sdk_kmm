@@ -1,4 +1,3 @@
-// commonMain/src/commonMain/kotlin/com/example/CountDownTimer.kt
 package com.example.spandansdkkmm.collection
 
 import kotlinx.coroutines.*
@@ -13,6 +12,12 @@ open class CountDownTimer(
     private var remainingTime: Long = duration
 
     fun start() {
+        // Cancel any existing job before starting a new one
+        job?.cancel()
+
+        // Reset remaining time
+        remainingTime = duration
+
         job = CoroutineScope(Dispatchers.Default).launch {
             while (remainingTime > 0) {
                 delay(interval)
